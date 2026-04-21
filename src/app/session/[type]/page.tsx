@@ -9,10 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, Play, Clock } from "lucide-react";
-import { Problem, SessionStartResponse } from "@/types";
+import { Problem, SessionStartResponse, SessionTestResult } from "@/types";
 import SessionTimer from "@/components/session/SessionTimer";
 import ProblemStatement from "@/components/session/ProblemStatement";
 import CompanyLogos from "@/components/session/CompanyLogos";
+import TestCasePanel from "@/components/session/TestCasePanel";
 import { formatTime } from "@/lib/utils";
 
 const MonacoEditor = dynamic(() => import("@/components/session/MonacoEditor"), {
@@ -22,19 +23,6 @@ const MonacoEditor = dynamic(() => import("@/components/session/MonacoEditor"), 
 
 interface PageProps {
   params: Promise<{ type: string }>;
-}
-
-interface TestResult {
-  passed: number;
-  total: number;
-  results: {
-    testCase: number;
-    passed: boolean;
-    input: any[];
-    expected: any;
-    actual?: any;
-    error?: string;
-  }[];
 }
 
 const LANGUAGES = [
@@ -51,7 +39,7 @@ export default function SessionPage({ params }: PageProps) {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [testResults, setTestResults] = useState<TestResult | null>(null);
+  const [testResults, setTestResults] = useState<SessionTestResult | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [sessionType, setSessionType] = useState("");
   const [experience, setExperience] = useState("");
@@ -316,7 +304,7 @@ export default function SessionPage({ params }: PageProps) {
           </Card>
 
           {/* Language Selector & Action Buttons */}
-          <div className="space-y-3">
+          <div className="space-y-3 flex flex-col h-full">
             {/* Language Selector */}
             <div className="flex gap-2 items-center">
               <label className="text-sm font-semibold text-slate-300">Language:</label>
@@ -338,75 +326,47 @@ export default function SessionPage({ params }: PageProps) {
               <Button
                 onClick={handleRunTests}
                 disabled={submitting}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
               >
                 <Play className="w-4 h-4 mr-2" />
-                {submitting ? "Running..." : "Run Tests"}
+                {submitting ? "Running..." : "Run"}
               </Button>
               <Button
                 onClick={() => submitSession("solved")}
-                disabled={submitting || !testResults || testResults.passed !== testResults.total}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white"
+                disabled={submitting}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
               >
-                Submit Solution
+                Submit
               </Button>
             </div>
 
-            {/* Test Results */}
+            {/* Submit Verdict Banner */}
             {showResults && testResults && (
-              <div className="mt-4 p-4 rounded-lg border border-slate-700 bg-slate-800/50">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="text-sm font-semibold">
-                    Test Results: {testResults.passed}/{testResults.total} passed
-                  </div>
-                  <div
-                    className={`text-lg font-bold ${
-                      testResults.passed === testResults.total ? "text-emerald-400" : "text-red-400"
-                    }`}
-                  >
-                    {testResults.passed === testResults.total ? "✓ All Tests Passed" : "✗ Tests Failed"}
-                  </div>
-                </div>
-
-                {/* Test Case Results */}
-                <div className="space-y-2">
-                  {testResults.results.map((result) => (
-                    <div
-                      key={result.testCase}
-                      className={`p-3 rounded text-sm border ${
-                        result.passed
-                          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
-                          : "bg-red-500/10 border-red-500/30 text-red-300"
-                      }`}
-                    >
-                      <div className="font-semibold">
-                        Test Case {result.testCase}: {result.passed ? "✓ PASSED" : "✗ FAILED"}
-                      </div>
-                      {!result.passed && (
-                        <div className="mt-2 text-xs space-y-1 text-slate-300">
-                          {result.error ? (
-                            <div>
-                              <strong>Error:</strong> {result.error}
-                            </div>
-                          ) : (
-                            <>
-                              <div>
-                                <strong>Input:</strong> {JSON.stringify(result.input)}
-                              </div>
-                              <div>
-                                <strong>Expected:</strong> {JSON.stringify(result.expected)}
-                              </div>
-                              <div>
-                                <strong>Got:</strong> {JSON.stringify(result.actual)}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+              <div
+                className={`p-3 rounded-lg border text-sm font-semibold ${
+                  testResults.passed === testResults.total
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                    : testResults.results.some((r) => r.error)
+                      ? "bg-red-500/10 border-red-500/30 text-red-300"
+                      : "bg-red-500/10 border-red-500/30 text-red-300"
+                }`}
+              >
+                {testResults.passed === testResults.total
+                  ? `✓ Accepted — ${testResults.passed}/${testResults.total} test cases passed`
+                  : testResults.results.some((r) => r.error)
+                    ? "✗ Compilation Error"
+                    : `✗ Wrong Answer — ${testResults.passed}/${testResults.total} test cases passed`}
               </div>
+            )}
+
+            {/* Test Cases Panel */}
+            {showResults && testResults && (
+              <TestCasePanel
+                results={testResults.results}
+                running={submitting}
+                passed={testResults.passed}
+                total={testResults.total}
+              />
             )}
           </div>
         </div>

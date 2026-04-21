@@ -70,6 +70,21 @@ export interface AttemptedProblem {
   needsReview: boolean;
 }
 
+export interface TestResultItem {
+  testCase: number;
+  label: string;
+  passed: boolean;
+  expected: string;
+  actual?: string;
+  error?: string;
+}
+
+export interface SessionTestResult {
+  passed: number;
+  total: number;
+  results: TestResultItem[];
+}
+
 export interface SessionReport {
   sessionId: string;
   generatedAt: string;

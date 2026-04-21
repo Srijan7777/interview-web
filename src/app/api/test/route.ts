@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import { getTestCases } from "@/lib/problem-stubs";
+import { PISTON_TEST_CASES } from "@/lib/problem-stubs";
+import { getHarness } from "@/lib/piston-harness";
 
 interface TestRequest {
   code: string;
@@ -12,13 +13,22 @@ interface TestResult {
   total: number;
   results: {
     testCase: number;
+    label: string;
     passed: boolean;
-    input: any[];
-    expected: any;
-    actual?: any;
+    expected: string;
+    actual?: string;
     error?: string;
   }[];
 }
+
+const PISTON_API = "https://emkc.org/api/v2/piston/execute";
+
+const LANGUAGE_MAP: Record<string, { pistonLang: string; pistonVersion: string }> = {
+  javascript: { pistonLang: "javascript", pistonVersion: "18.15.0" },
+  python: { pistonLang: "python", pistonVersion: "3.10.0" },
+  java: { pistonLang: "java", pistonVersion: "15.0.2" },
+  cpp: { pistonLang: "cpp", pistonVersion: "10.2.0" },
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,18 +36,22 @@ export async function POST(request: NextRequest) {
     const { code, language, problemId } = body;
 
     if (!code || !language || !problemId) {
-      return Response.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+      return Response.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const testCases = getTestCases(problemId);
-
-    if (testCases.length === 0) {
+    const testCases = PISTON_TEST_CASES[problemId];
+    if (!testCases || testCases.length === 0) {
       return Response.json(
         { error: "No test cases found for this problem" },
         { status: 404 }
+      );
+    }
+
+    const langConfig = LANGUAGE_MAP[language];
+    if (!langConfig) {
+      return Response.json(
+        { error: `Language '${language}' not supported` },
+        { status: 400 }
       );
     }
 
@@ -48,83 +62,83 @@ export async function POST(request: NextRequest) {
       const testCase = testCases[i];
 
       try {
-        let actual;
-
-        if (language === "javascript") {
-          // Extract function name and create execution wrapper
-          const funcMatch = code.match(/function\s+(\w+)/);
-          const funcName = funcMatch ? funcMatch[1] : "twoSum";
-
-          // Create execution context
-          const wrapper = `
-            ${code}
-
-            try {
-              const result = ${funcName}(...${JSON.stringify(testCase.input)});
-              JSON.stringify(result);
-            } catch (e) {
-              'ERROR: ' + e.message;
-            }
-          `;
-
-          actual = eval(wrapper);
-
-          // Check if result is error
-          if (typeof actual === "string" && actual.startsWith("ERROR:")) {
-            results.push({
-              testCase: i + 1,
-              passed: false,
-              input: testCase.input,
-              expected: testCase.output,
-              error: actual,
-            });
-            continue;
-          }
-
-          // Parse JSON result
-          actual = JSON.parse(actual);
-        } else if (language === "python") {
-          // For Python, we'd need a separate backend runtime
-          // For now, return error
-          return Response.json(
-            { error: "Python execution not yet available. Coming soon!" },
-            { status: 501 }
-          );
-        } else if (language === "java" || language === "cpp") {
-          return Response.json(
-            { error: `${language} execution not yet available. Coming soon!` },
-            { status: 501 }
-          );
+        // Get harness for this language/problem
+        const harness = getHarness(language, problemId);
+        if (!harness) {
+          results.push({
+            testCase: i + 1,
+            label: testCase.label,
+            passed: false,
+            expected: testCase.expected,
+            error: "No harness template for this problem",
+          });
+          continue;
         }
 
-        // Compare results
-        const passed = deepEqual(actual, testCase.output);
+        // Inject user code into harness
+        const fullSource = harness.replace("// USER_CODE", code);
+
+        // Execute via Piston API
+        const pistonResponse = await fetch(PISTON_API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            language: langConfig.pistonLang,
+            version: langConfig.pistonVersion,
+            files: [{ content: fullSource }],
+            stdin: testCase.stdin,
+          }),
+        });
+
+        const pistonResult = await pistonResponse.json();
+
+        if (!pistonResponse.ok) {
+          results.push({
+            testCase: i + 1,
+            label: testCase.label,
+            passed: false,
+            expected: testCase.expected,
+            error: pistonResult.message || "Piston API error",
+          });
+          continue;
+        }
+
+        const { run } = pistonResult;
+
+        // Check for compile/runtime errors
+        if (run.code !== 0) {
+          results.push({
+            testCase: i + 1,
+            label: testCase.label,
+            passed: false,
+            expected: testCase.expected,
+            error: run.stderr || run.compile_output || "Execution failed",
+          });
+          continue;
+        }
+
+        const actual = run.stdout.trim();
+        const expected = testCase.expected.trim();
+        const passed = actual === expected;
 
         if (passed) {
           passedCount++;
-          results.push({
-            testCase: i + 1,
-            passed: true,
-            input: testCase.input,
-            expected: testCase.output,
-            actual,
-          });
-        } else {
-          results.push({
-            testCase: i + 1,
-            passed: false,
-            input: testCase.input,
-            expected: testCase.output,
-            actual,
-          });
         }
+
+        results.push({
+          testCase: i + 1,
+          label: testCase.label,
+          passed,
+          expected,
+          actual,
+        });
       } catch (err: any) {
         results.push({
           testCase: i + 1,
+          label: testCase.label,
           passed: false,
-          input: testCase.input,
-          expected: testCase.output,
-          error: err.message || "Execution error",
+          expected: testCase.expected,
+          error: err.message || "Unknown error",
         });
       }
     }
@@ -141,26 +155,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-function deepEqual(a: any, b: any): boolean {
-  if (a === b) return true;
-
-  if (a == null || b == null) return a === b;
-
-  if (Array.isArray(a) && Array.isArray(b)) {
-    if (a.length !== b.length) return false;
-    return a.every((val, idx) => deepEqual(val, b[idx]));
-  }
-
-  if (typeof a === "object" && typeof b === "object") {
-    const keysA = Object.keys(a);
-    const keysB = Object.keys(b);
-
-    if (keysA.length !== keysB.length) return false;
-
-    return keysA.every((key) => deepEqual(a[key], b[key]));
-  }
-
-  return false;
 }

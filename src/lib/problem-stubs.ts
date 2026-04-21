@@ -306,6 +306,32 @@ export const TEST_CASES: Record<number, TestCase[]> = {
   ],
 };
 
+// Piston API test cases (stdin/stdout format for multi-language execution)
+export const PISTON_TEST_CASES: Record<number, { stdin: string; expected: string; label: string }[]> = {
+  1: [
+    { label: "Example 1", stdin: "4\n2 7 11 15\n9", expected: "0 1" },
+    { label: "Example 2", stdin: "3\n3 2 4\n6", expected: "1 2" },
+    { label: "Duplicate", stdin: "2\n3 3\n6", expected: "0 1" },
+  ],
+  3: [
+    { label: "Example 1", stdin: "abcabcbb", expected: "3" },
+    { label: "Example 2", stdin: "bbbbb", expected: "1" },
+    { label: "Example 3", stdin: "pwwkew", expected: "3" },
+    { label: "Two chars", stdin: "au", expected: "2" },
+  ],
+  20: [
+    { label: "Simple", stdin: "()", expected: "true" },
+    { label: "Multiple", stdin: "()[]{}", expected: "true" },
+    { label: "Mismatch", stdin: "([)]", expected: "false" },
+    { label: "Nested", stdin: "{[]}", expected: "true" },
+  ],
+  121: [
+    { label: "Example 1", stdin: "6\n7 1 5 3 6 4", expected: "5" },
+    { label: "Decreasing", stdin: "5\n7 6 4 3 1", expected: "0" },
+    { label: "Two prices", stdin: "2\n2 4", expected: "2" },
+  ],
+};
+
 export const PROBLEM_EXAMPLES: Record<number, any[]> = {
   1: [
     { input: "nums = [2,7,11,15], target = 9", output: "[0,1]", explanation: "nums[0] + nums[1] = 9" },
