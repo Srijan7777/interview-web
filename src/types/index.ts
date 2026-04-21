@@ -12,6 +12,14 @@ export interface Problem {
   spaceComplexity: string;
   timesAttempted?: number;
   lastAttemptDate?: string | null;
+  description?: string;
+  examples?: {
+    input: string;
+    output: string;
+    explanation?: string;
+  }[];
+  codeStub?: string;
+  diagram?: string;
 }
 
 export interface Progress {

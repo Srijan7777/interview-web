@@ -41,10 +41,36 @@ export default function ProblemStatement({ problem }: ProblemStatementProps) {
         <div className="space-y-4 text-sm text-slate-300">
           <div>
             <h3 className="font-semibold text-slate-100 mb-2">Description</h3>
-            <p className="text-slate-400 leading-relaxed">
-              {problem.approach || "A classic coding interview problem."}
+            <p className="text-slate-400 leading-relaxed whitespace-pre-wrap">
+              {problem.description || problem.approach || "A classic coding interview problem."}
             </p>
           </div>
+
+          {problem.examples && problem.examples.length > 0 && (
+            <div>
+              <h3 className="font-semibold text-slate-100 mb-2">Examples</h3>
+              <div className="space-y-3">
+                {problem.examples.map((ex, i) => (
+                  <div key={i} className="bg-slate-800/50 rounded p-3 border border-slate-700">
+                    <div className="text-xs text-slate-500 mb-1">Example {i + 1}</div>
+                    <div className="font-mono text-xs space-y-1 text-slate-300">
+                      <div>
+                        <span className="text-slate-500">Input:</span> {ex.input}
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Output:</span> {ex.output}
+                      </div>
+                      {ex.explanation && (
+                        <div>
+                          <span className="text-slate-500">Explain:</span> {ex.explanation}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div>
             <h3 className="font-semibold text-slate-100 mb-2">Complexity</h3>

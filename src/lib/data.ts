@@ -8,6 +8,7 @@ import {
   Topics,
   DailyProblem,
 } from "@/types";
+import { getCodeStub, getExamples } from "@/lib/problem-stubs";
 
 const CLI_ROOT = process.env.CLI_DATA_PATH ?? "C:\\Users\\Admin\\interview-prep";
 
@@ -135,10 +136,18 @@ export async function getTodaysProblem(): Promise<DailyProblem> {
   }
 
   const selected = topicProblems[0] as any;
+
+  // Attach code stub and examples
+  const problemWithStub: Problem = {
+    ...selected,
+    codeStub: getCodeStub(selected.leetcodeNumber),
+    examples: getExamples(selected.leetcodeNumber),
+  };
+
   const daily: DailyProblem = {
     date: today,
     topic: todayTopic,
-    problem: selected,
+    problem: problemWithStub,
   };
 
   writeJSON(PATHS.daily, daily);

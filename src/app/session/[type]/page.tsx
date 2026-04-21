@@ -12,6 +12,7 @@ import { AlertCircle, Play, Clock } from "lucide-react";
 import { Problem, SessionStartResponse } from "@/types";
 import SessionTimer from "@/components/session/SessionTimer";
 import ProblemStatement from "@/components/session/ProblemStatement";
+import CompanyLogos from "@/components/session/CompanyLogos";
 import { formatTime } from "@/lib/utils";
 
 const MonacoEditor = dynamic(() => import("@/components/session/MonacoEditor"), {
@@ -54,10 +55,15 @@ export default function SessionPage({ params }: PageProps) {
         const data = await response.json();
         setSessionData(data);
 
-        // Load code from localStorage if available
+        // Load code from localStorage if available, otherwise use code stub
         const savedCode = localStorage.getItem(`code-${data.sessionId}`);
         if (savedCode) {
           setCode(savedCode);
+        } else if (data.problem.codeStub) {
+          setCode(data.problem.codeStub);
+        } else {
+          // Default stub if none provided
+          setCode("function solve(input) {\n  // Write your solution here\n  return result;\n}");
         }
       } catch (error) {
         console.error("Failed to start session:", error);
@@ -183,9 +189,9 @@ export default function SessionPage({ params }: PageProps) {
       {/* Header with Timer */}
       <div className="border-b border-slate-800 bg-black/50 backdrop-blur sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
+          <div className="flex-1">
             <h1 className="text-lg font-bold text-white">{sessionData.problem.title}</h1>
-            <div className="flex gap-2 mt-2">
+            <div className="flex gap-2 mt-2 mb-3">
               <Badge variant="outline" className="border-slate-700">
                 {sessionData.problem.difficulty}
               </Badge>
@@ -193,6 +199,7 @@ export default function SessionPage({ params }: PageProps) {
                 {sessionData.problem.topic.replace(/-/g, " ")}
               </Badge>
             </div>
+            <CompanyLogos companies={sessionData.problem.companies} />
           </div>
 
           <SessionTimer
