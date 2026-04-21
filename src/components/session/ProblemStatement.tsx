@@ -96,6 +96,21 @@ export default function ProblemStatement({ problem }: ProblemStatementProps) {
           </div>
 
           <div className="pt-4 border-t border-slate-800">
+            <h3 className="font-semibold text-slate-100 mb-2 text-xs">Companies Asking This</h3>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {problem.companies.map((company) => (
+                <Badge
+                  key={company}
+                  variant="outline"
+                  className="bg-indigo-500/10 text-indigo-300 border-indigo-500/30 text-xs capitalize"
+                >
+                  {company}
+                </Badge>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-slate-800">
             <a
               href={problem.url}
               target="_blank"

@@ -7,12 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
-import { AlertCircle, Play, Clock } from "lucide-react";
+import { AlertCircle, Play } from "lucide-react";
 import { Problem, SessionStartResponse, SessionTestResult } from "@/types";
 import SessionTimer from "@/components/session/SessionTimer";
 import ProblemStatement from "@/components/session/ProblemStatement";
-import CompanyLogos from "@/components/session/CompanyLogos";
 import TestCasePanel from "@/components/session/TestCasePanel";
 import { formatTime } from "@/lib/utils";
 
@@ -246,7 +244,7 @@ export default function SessionPage({ params }: PageProps) {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex-1">
             <h1 className="text-lg font-bold text-white">{sessionData.problem.title}</h1>
-            <div className="flex gap-2 mt-2 mb-3">
+            <div className="flex gap-2 mt-2">
               <Badge variant="outline" className="border-slate-700">
                 {sessionData.problem.difficulty}
               </Badge>
@@ -254,7 +252,6 @@ export default function SessionPage({ params }: PageProps) {
                 {sessionData.problem.topic.replace(/-/g, " ")}
               </Badge>
             </div>
-            <CompanyLogos companies={sessionData.problem.companies} />
           </div>
 
           <SessionTimer
@@ -264,63 +261,38 @@ export default function SessionPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Main Content — Split Pane */}
       <div className="flex-1 flex gap-6 max-w-7xl mx-auto w-full px-6 py-6 overflow-hidden">
-        {/* Problem Panel */}
-        <div className="w-96 flex-shrink-0 flex flex-col gap-4 overflow-auto">
+        {/* Left Panel — 45% */}
+        <div className="w-[45%] flex-shrink-0 flex flex-col gap-4 overflow-y-auto">
           <ProblemStatement problem={sessionData.problem} />
-
-          <Card className="bg-slate-900 border-slate-800 p-4">
-            <h3 className="font-semibold mb-3 text-sm">Companies Asking This</h3>
-            <div className="flex flex-wrap gap-2">
-              {sessionData.problem.companies.map((company) => (
-                <Badge key={company} variant="secondary" className="text-xs">
-                  {company}
-                </Badge>
-              ))}
-            </div>
-          </Card>
-
-          <Card className="bg-slate-900 border-slate-800 p-4">
-            <h3 className="font-semibold mb-3 text-sm">Optimal Solution</h3>
-            <p className="text-slate-400 text-xs leading-relaxed">{sessionData.problem.approach}</p>
-            <div className="mt-3 space-y-1 text-xs text-slate-400">
-              <div>
-                <span className="text-slate-500">Time:</span> {sessionData.problem.timeComplexity}
-              </div>
-              <div>
-                <span className="text-slate-500">Space:</span> {sessionData.problem.spaceComplexity}
-              </div>
-            </div>
-          </Card>
         </div>
 
-        <Separator orientation="vertical" className="bg-slate-800" />
+        {/* Right Panel — 55% */}
+        <div className="w-[55%] flex flex-col gap-4 min-w-0 overflow-hidden">
+          {/* Language Selector & Action Buttons */}
+          <div className="flex gap-3 items-center">
+            <label className="text-sm font-semibold text-slate-300 whitespace-nowrap">Language:</label>
+            <select
+              value={language}
+              onChange={(e) => handleLanguageChange(e.target.value)}
+              className="px-3 py-2 rounded bg-slate-800 border border-slate-700 text-sm text-white focus:outline-none focus:border-indigo-500"
+            >
+              {LANGUAGES.map((lang) => (
+                <option key={lang.value} value={lang.value}>
+                  {lang.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        {/* Editor Panel */}
-        <div className="flex-1 flex flex-col gap-4 min-w-0">
-          <Card className="bg-slate-900 border-slate-800 flex-1 overflow-hidden">
-            <MonacoEditor value={code} onChange={setCode} language="javascript" />
+          {/* Editor */}
+          <Card className="bg-slate-900 border-slate-800 flex-1 overflow-hidden min-h-0">
+            <MonacoEditor value={code} onChange={setCode} language={language} />
           </Card>
 
-          {/* Language Selector & Action Buttons */}
-          <div className="space-y-3 flex flex-col h-full">
-            {/* Language Selector */}
-            <div className="flex gap-2 items-center">
-              <label className="text-sm font-semibold text-slate-300">Language:</label>
-              <select
-                value={language}
-                onChange={(e) => handleLanguageChange(e.target.value)}
-                className="px-3 py-2 rounded bg-slate-800 border border-slate-700 text-sm text-white focus:outline-none focus:border-indigo-500"
-              >
-                {LANGUAGES.map((lang) => (
-                  <option key={lang.value} value={lang.value}>
-                    {lang.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
+          {/* Action Buttons & Results */}
+          <div className="flex flex-col gap-3">
             {/* Action Buttons */}
             <div className="flex gap-3">
               <Button
@@ -361,12 +333,14 @@ export default function SessionPage({ params }: PageProps) {
 
             {/* Test Cases Panel */}
             {showResults && testResults && (
-              <TestCasePanel
-                results={testResults.results}
-                running={submitting}
-                passed={testResults.passed}
-                total={testResults.total}
-              />
+              <div className="flex-1 min-h-0 overflow-hidden">
+                <TestCasePanel
+                  results={testResults.results}
+                  running={submitting}
+                  passed={testResults.passed}
+                  total={testResults.total}
+                />
+              </div>
             )}
           </div>
         </div>
