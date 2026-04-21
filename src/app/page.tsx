@@ -14,9 +14,9 @@ import {
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+    <div className="min-h-screen bg-black">
       {/* Navigation */}
-      <nav className="border-b border-slate-800 bg-slate-950/50 backdrop-blur">
+      <nav className="border-b border-slate-800 bg-black/50 backdrop-blur">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="text-xl font-bold bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
             InterviewFlow
