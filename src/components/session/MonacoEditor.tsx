@@ -45,7 +45,8 @@ export default function MonacoEditor({
         automaticLayout: true,
         tabSize: 2,
         wordWrap: "on",
-      }}
+      } as any}
+      key={language}
     />
   );
 }

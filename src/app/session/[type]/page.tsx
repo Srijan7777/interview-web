@@ -24,6 +24,26 @@ interface PageProps {
   params: Promise<{ type: string }>;
 }
 
+interface TestResult {
+  passed: number;
+  total: number;
+  results: {
+    testCase: number;
+    passed: boolean;
+    input: any[];
+    expected: any;
+    actual?: any;
+    error?: string;
+  }[];
+}
+
+const LANGUAGES = [
+  { value: "javascript", label: "JavaScript" },
+  { value: "python", label: "Python" },
+  { value: "java", label: "Java" },
+  { value: "cpp", label: "C++" },
+];
+
 export default function SessionPage({ params }: PageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -31,8 +51,11 @@ export default function SessionPage({ params }: PageProps) {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [testResults, setTestResults] = useState<TestResult | null>(null);
+  const [showResults, setShowResults] = useState(false);
   const [sessionType, setSessionType] = useState("");
   const [experience, setExperience] = useState("");
+  const [language, setLanguage] = useState("javascript");
 
   useEffect(() => {
     const initSession = async () => {
@@ -59,11 +82,11 @@ export default function SessionPage({ params }: PageProps) {
         const savedCode = localStorage.getItem(`code-${data.sessionId}`);
         if (savedCode) {
           setCode(savedCode);
-        } else if (data.problem.codeStub) {
-          setCode(data.problem.codeStub);
         } else {
-          // Default stub if none provided
-          setCode("function solve(input) {\n  // Write your solution here\n  return result;\n}");
+          // Import stubs dynamically
+          const { getCodeStub } = await import("@/lib/problem-stubs");
+          const stub = getCodeStub(data.problem.leetcodeNumber, "javascript");
+          setCode(stub);
         }
       } catch (error) {
         console.error("Failed to start session:", error);
@@ -88,6 +111,50 @@ export default function SessionPage({ params }: PageProps) {
 
   const handleTimerExpire = async () => {
     await submitSession("stuck");
+  };
+
+  const handleLanguageChange = async (newLanguage: string) => {
+    setLanguage(newLanguage);
+
+    if (!sessionData) return;
+
+    const { getCodeStub } = await import("@/lib/problem-stubs");
+    const stub = getCodeStub(sessionData.problem.leetcodeNumber, newLanguage);
+    setCode(stub);
+    setTestResults(null);
+    setShowResults(false);
+  };
+
+  const handleRunTests = async () => {
+    if (!sessionData) return;
+
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          language,
+          problemId: sessionData.problem.leetcodeNumber,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        alert(result.error || "Failed to run tests");
+        return;
+      }
+
+      setTestResults(result);
+      setShowResults(true);
+    } catch (error) {
+      console.error("Error running tests:", error);
+      alert("Failed to run tests");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleSubmit = async (result: "solved" | "partial" | "stuck" = "solved") => {
@@ -248,32 +315,99 @@ export default function SessionPage({ params }: PageProps) {
             <MonacoEditor value={code} onChange={setCode} language="javascript" />
           </Card>
 
-          {/* Action Buttons */}
-          <div className="flex gap-3">
-            <Button
-              onClick={() => submitSession("solved")}
-              disabled={submitting}
-              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              <Play className="w-4 h-4 mr-2" />
-              {submitting ? "Submitting..." : "Submit Solution"}
-            </Button>
-            <Button
-              onClick={() => submitSession("partial")}
-              disabled={submitting}
-              variant="outline"
-              className="flex-1 border-slate-700"
-            >
-              Partial Solution
-            </Button>
-            <Button
-              onClick={() => submitSession("stuck")}
-              disabled={submitting}
-              variant="outline"
-              className="flex-1 border-slate-700"
-            >
-              Give Up
-            </Button>
+          {/* Language Selector & Action Buttons */}
+          <div className="space-y-3">
+            {/* Language Selector */}
+            <div className="flex gap-2 items-center">
+              <label className="text-sm font-semibold text-slate-300">Language:</label>
+              <select
+                value={language}
+                onChange={(e) => handleLanguageChange(e.target.value)}
+                className="px-3 py-2 rounded bg-slate-800 border border-slate-700 text-sm text-white focus:outline-none focus:border-indigo-500"
+              >
+                {LANGUAGES.map((lang) => (
+                  <option key={lang.value} value={lang.value}>
+                    {lang.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <Button
+                onClick={handleRunTests}
+                disabled={submitting}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Play className="w-4 h-4 mr-2" />
+                {submitting ? "Running..." : "Run Tests"}
+              </Button>
+              <Button
+                onClick={() => submitSession("solved")}
+                disabled={submitting || !testResults || testResults.passed !== testResults.total}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white"
+              >
+                Submit Solution
+              </Button>
+            </div>
+
+            {/* Test Results */}
+            {showResults && testResults && (
+              <div className="mt-4 p-4 rounded-lg border border-slate-700 bg-slate-800/50">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="text-sm font-semibold">
+                    Test Results: {testResults.passed}/{testResults.total} passed
+                  </div>
+                  <div
+                    className={`text-lg font-bold ${
+                      testResults.passed === testResults.total ? "text-emerald-400" : "text-red-400"
+                    }`}
+                  >
+                    {testResults.passed === testResults.total ? "✓ All Tests Passed" : "✗ Tests Failed"}
+                  </div>
+                </div>
+
+                {/* Test Case Results */}
+                <div className="space-y-2">
+                  {testResults.results.map((result) => (
+                    <div
+                      key={result.testCase}
+                      className={`p-3 rounded text-sm border ${
+                        result.passed
+                          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                          : "bg-red-500/10 border-red-500/30 text-red-300"
+                      }`}
+                    >
+                      <div className="font-semibold">
+                        Test Case {result.testCase}: {result.passed ? "✓ PASSED" : "✗ FAILED"}
+                      </div>
+                      {!result.passed && (
+                        <div className="mt-2 text-xs space-y-1 text-slate-300">
+                          {result.error ? (
+                            <div>
+                              <strong>Error:</strong> {result.error}
+                            </div>
+                          ) : (
+                            <>
+                              <div>
+                                <strong>Input:</strong> {JSON.stringify(result.input)}
+                              </div>
+                              <div>
+                                <strong>Expected:</strong> {JSON.stringify(result.expected)}
+                              </div>
+                              <div>
+                                <strong>Got:</strong> {JSON.stringify(result.actual)}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
