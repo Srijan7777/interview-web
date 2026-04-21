@@ -276,7 +276,8 @@ public:
 
         return maxProfit;
     }
-};`,
+};
+`,
   },
 };
 
