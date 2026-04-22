@@ -21,14 +21,74 @@ interface TestResult {
   }[];
 }
 
-const PISTON_API = "https://emkc.org/api/v2/piston/execute";
-
-const LANGUAGE_MAP: Record<string, { pistonLang: string; pistonVersion: string }> = {
-  javascript: { pistonLang: "javascript", pistonVersion: "18.15.0" },
-  python: { pistonLang: "python", pistonVersion: "3.10.0" },
-  java: { pistonLang: "java", pistonVersion: "15.0.2" },
-  cpp: { pistonLang: "cpp", pistonVersion: "10.2.0" },
+// Map languages to Judge0 language IDs
+const LANGUAGE_MAP: Record<string, number> = {
+  javascript: 63,  // JavaScript (Node.js 18.15.0)
+  python: 71,      // Python (3.10.0)
+  java: 62,        // Java (15.0.2)
+  cpp: 54,         // C++ (10.2.0)
 };
+
+const JUDGE0_API = "https://ce.judge0.com";
+
+// Poll for execution result with retries
+async function pollForResult(token: string, maxAttempts: number = 10): Promise<any> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const response = await fetch(`${JUDGE0_API}/submissions/${token}?base64_encoded=false`);
+
+    if (!response.ok) {
+      throw new Error(`Failed to poll Judge0: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+
+    // Status 1 = In Queue, 2 = Processing, 3+ = Done
+    if (result.status.id > 2) {
+      return result;
+    }
+
+    // Wait before polling again (exponential backoff)
+    await new Promise(resolve => setTimeout(resolve, Math.min(100 * (i + 1), 500)));
+  }
+
+  throw new Error("Execution timeout: Judge0 took too long to respond");
+}
+
+async function executeWithJudge0(
+  languageId: number,
+  sourceCode: string,
+  stdin: string
+): Promise<{ stdout: string; stderr: string; compile_output?: string; status_id: number }> {
+  // Submit code for execution
+  const submitResponse = await fetch(`${JUDGE0_API}/submissions?base64_encoded=false&wait=false`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      language_id: languageId,
+      source_code: sourceCode,
+      stdin: stdin,
+      cpu_time_limit: 5,
+      memory_limit: 128000,
+    }),
+  });
+
+  if (!submitResponse.ok) {
+    throw new Error(`Judge0 submission failed: ${submitResponse.statusText}`);
+  }
+
+  const submitData = await submitResponse.json();
+  const token = submitData.token;
+
+  // Poll for result
+  const result = await pollForResult(token);
+
+  return {
+    stdout: result.stdout || "",
+    stderr: result.stderr || "",
+    compile_output: result.compile_output || "",
+    status_id: result.status.id,
+  };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,8 +107,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const langConfig = LANGUAGE_MAP[language];
-    if (!langConfig) {
+    const languageId = LANGUAGE_MAP[language];
+    if (!languageId) {
       return Response.json(
         { error: `Language '${language}' not supported` },
         { status: 400 }
@@ -78,46 +138,46 @@ export async function POST(request: NextRequest) {
         // Inject user code into harness
         const fullSource = harness.replace("// USER_CODE", code);
 
-        // Execute via Piston API
-        const pistonResponse = await fetch(PISTON_API, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            language: langConfig.pistonLang,
-            version: langConfig.pistonVersion,
-            files: [{ content: fullSource }],
-            stdin: testCase.stdin,
-          }),
-        });
+        // Execute via Judge0 CE
+        const execResult = await executeWithJudge0(languageId, fullSource, testCase.stdin);
 
-        const pistonResult = await pistonResponse.json();
-
-        if (!pistonResponse.ok) {
+        // Check for compile errors (status_id 6 = compilation error)
+        if (execResult.status_id === 6 && execResult.compile_output) {
           results.push({
             testCase: i + 1,
             label: testCase.label,
             passed: false,
             expected: testCase.expected,
-            error: pistonResult.message || "Piston API error",
+            error: `Compilation Error:\n${execResult.compile_output}`,
           });
           continue;
         }
 
-        const { run } = pistonResult;
-
-        // Check for compile/runtime errors
-        if (run.code !== 0) {
+        // Check for runtime errors (status_id 5 = runtime error)
+        if (execResult.status_id === 5 && execResult.stderr) {
           results.push({
             testCase: i + 1,
             label: testCase.label,
             passed: false,
             expected: testCase.expected,
-            error: run.stderr || run.compile_output || "Execution failed",
+            error: `Runtime Error:\n${execResult.stderr}`,
           });
           continue;
         }
 
-        const actual = run.stdout.trim();
+        // Status 3 = accepted (success)
+        if (execResult.status_id !== 3) {
+          results.push({
+            testCase: i + 1,
+            label: testCase.label,
+            passed: false,
+            expected: testCase.expected,
+            error: `Execution failed with status ${execResult.status_id}`,
+          });
+          continue;
+        }
+
+        const actual = execResult.stdout.trim();
         const expected = testCase.expected.trim();
         const passed = actual === expected;
 
