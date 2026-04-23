@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { generateDSAReport, generateHLDReport } from "@/lib/claude";
+import { generateDSAReportGroq, generateHLDReportGroq } from "@/lib/groq";
 import { SessionReport } from "@/types";
 
 export async function POST(request: NextRequest) {
@@ -25,6 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     let report: SessionReport;
+    const useGroq = !!process.env.GROQ_API_KEY;
 
     if (type === "dsa") {
       if (!problem || !code) {
@@ -34,13 +36,34 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      report = await generateDSAReport({
-        problem,
-        code,
-        experience,
-        timeTakenMinutes,
-        allocatedMinutes,
-      });
+      if (useGroq) {
+        try {
+          report = await generateDSAReportGroq({
+            problem,
+            code,
+            experience,
+            timeTakenMinutes,
+            allocatedMinutes,
+          });
+        } catch (err) {
+          console.error("Groq failed, falling back to Claude:", err);
+          report = await generateDSAReport({
+            problem,
+            code,
+            experience,
+            timeTakenMinutes,
+            allocatedMinutes,
+          });
+        }
+      } else {
+        report = await generateDSAReport({
+          problem,
+          code,
+          experience,
+          timeTakenMinutes,
+          allocatedMinutes,
+        });
+      }
     } else if (type === "hld") {
       if (!scenario || !diagramDescription) {
         return Response.json(
@@ -49,13 +72,34 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      report = await generateHLDReport({
-        title: scenario.title,
-        requirements: scenario.requirements,
-        diagramDescription,
-        experience,
-        timeTakenMinutes,
-      });
+      if (useGroq) {
+        try {
+          report = await generateHLDReportGroq({
+            title: scenario.title,
+            requirements: scenario.requirements,
+            diagramDescription,
+            experience,
+            timeTakenMinutes,
+          });
+        } catch (err) {
+          console.error("Groq failed, falling back to Claude:", err);
+          report = await generateHLDReport({
+            title: scenario.title,
+            requirements: scenario.requirements,
+            diagramDescription,
+            experience,
+            timeTakenMinutes,
+          });
+        }
+      } else {
+        report = await generateHLDReport({
+          title: scenario.title,
+          requirements: scenario.requirements,
+          diagramDescription,
+          experience,
+          timeTakenMinutes,
+        });
+      }
     } else {
       return Response.json({ error: "Invalid type" }, { status: 400 });
     }
