@@ -11,6 +11,7 @@ import { AlertCircle, Save } from "lucide-react";
 import { SessionStartResponse, HLDScenario, HLDFormData } from "@/types";
 import SessionTimer from "@/components/session/SessionTimer";
 import HLDTemplate from "@/components/session/HLDTemplate";
+import HLDDesignHints from "@/components/session/HLDDesignHints";
 
 const ExcalidrawCanvas = dynamic(
   () => import("@/components/session/ExcalidrawCanvas").then((mod) => ({ default: mod.ExcalidrawCanvas })),
@@ -224,10 +225,15 @@ ${excalidrawDescription}
         </div>
       </div>
 
+      {/* Design Hints - Sticky below header */}
+      <div className="max-w-7xl mx-auto w-full px-6 pt-4">
+        <HLDDesignHints scenario={scenario} />
+      </div>
+
       {/* Main Content — Split Pane */}
-      <div className="flex-1 flex gap-6 max-w-7xl mx-auto w-full px-6 py-6 overflow-hidden">
-        {/* Left Panel — 45% */}
-        <div className="w-[45%] flex-shrink-0 overflow-hidden">
+      <div className="flex-1 flex gap-6 max-w-7xl mx-auto w-full px-6 py-4 overflow-hidden">
+        {/* Left Panel — 40% */}
+        <div className="w-[40%] flex-shrink-0 overflow-hidden">
           <HLDTemplate
             scenario={scenario}
             value={hldFormData}
@@ -235,12 +241,18 @@ ${excalidrawDescription}
           />
         </div>
 
-        {/* Right Panel — 55% */}
-        <div className="w-[55%] flex flex-col gap-4 min-w-0 overflow-hidden">
+        {/* Right Panel — 60% */}
+        <div className="w-[60%] flex flex-col gap-3 min-w-0 overflow-hidden">
+          {/* Canvas Title */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-white">High Level Design</h2>
+            <span className="text-xs text-slate-500">Draw your architecture below</span>
+          </div>
+
           {/* Canvas */}
-          <Card className="bg-slate-900 border-slate-800 flex-1 overflow-hidden min-h-0">
+          <div className="flex-1 overflow-hidden min-h-0 bg-[#F2F3F2] rounded-lg">
             <ExcalidrawCanvas ref={excalidrawRef} />
-          </Card>
+          </div>
 
           {/* Submit Button */}
           <Button
@@ -249,7 +261,7 @@ ${excalidrawDescription}
             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
           >
             <Save className="w-4 h-4 mr-2" />
-            {submitting ? "Submitting..." : "Submit Design"}
+            {submitting ? "Submitting to AI..." : "Submit Design"}
           </Button>
         </div>
       </div>
