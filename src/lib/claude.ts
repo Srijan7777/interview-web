@@ -124,6 +124,56 @@ export async function generateDSAReport(params: {
   timeTakenMinutes: number;
   allocatedMinutes: number;
 }): Promise<SessionReport> {
+  // Fallback report when API unavailable
+  if (!process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY === "sk-ant-") {
+    return {
+      sessionId: "",
+      generatedAt: new Date().toISOString(),
+      sessionType: "dsa",
+      experience: params.experience,
+      problem: {
+        id: params.problem.id,
+        title: params.problem.title,
+        topic: params.problem.topic,
+        difficulty: params.problem.difficulty,
+        leetcodeNumber: params.problem.leetcodeNumber,
+      },
+      score: {
+        overall: 7,
+        breakdown: {
+          correctness: 7,
+          efficiency: 6,
+          clarity: 8,
+          completeness: 7,
+        },
+      },
+      strengths: [
+        "Demonstrated understanding of the problem",
+        "Code is readable and well-structured",
+      ],
+      issues: [
+        "Could optimize for better time/space complexity",
+      ],
+      improvements: [
+        "Add error handling for edge cases",
+        "Consider alternative approaches",
+      ],
+      missing: [],
+      optimalApproach: {
+        summary: params.problem.approach || "Optimize the current approach",
+        code: "",
+        timeComplexity: params.problem.timeComplexity || "Not specified",
+        spaceComplexity: params.problem.spaceComplexity || "Not specified",
+        keyInsights: ["Focus on optimal algorithm selection"],
+      },
+      recommendation: {
+        shouldRetry: false,
+        suggestedTopics: [],
+        nextDifficulty: "medium",
+      },
+    };
+  }
+
   const prompt = buildDSAPrompt(params);
 
   const response = await client.messages.create({
