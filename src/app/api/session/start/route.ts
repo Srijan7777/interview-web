@@ -24,12 +24,28 @@ export async function POST(request: NextRequest) {
 
     if (type === "hld") {
       const scenario = HLD_PROMPTS[Math.floor(Math.random() * HLD_PROMPTS.length)];
-      return Response.json({
+      const response = {
         sessionId,
         scenario,
         startedAt: new Date().toISOString(),
         duration: 45 * 60,
-      });
+      };
+
+      // Cache session data for design page retrieval
+      try {
+        await fetch(new URL("/api/session/read", process.env.NEXTAUTH_URL || "http://localhost:3000"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId,
+            sessionData: response,
+          }),
+        });
+      } catch (e) {
+        console.error("Failed to cache session data:", e);
+      }
+
+      return Response.json(response);
     }
 
     const daily = await getTodaysProblem();

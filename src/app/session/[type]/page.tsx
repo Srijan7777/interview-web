@@ -1,26 +1,19 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, Play, Save } from "lucide-react";
-import { Problem, SessionStartResponse, SessionTestResult, HLDScenario, HLDFormData } from "@/types";
+import { AlertCircle, Play } from "lucide-react";
+import { SessionStartResponse, SessionTestResult } from "@/types";
 import SessionTimer from "@/components/session/SessionTimer";
 import ProblemStatement from "@/components/session/ProblemStatement";
 import TestCasePanel from "@/components/session/TestCasePanel";
-import HLDTemplate from "@/components/session/HLDTemplate";
-import { formatTime } from "@/lib/utils";
 
 const MonacoEditor = dynamic(() => import("@/components/session/MonacoEditor"), {
-  ssr: false,
-  loading: () => <Skeleton className="h-96 bg-slate-800" />,
-});
-
-const ExcalidrawCanvas = dynamic(() => import("@/components/session/ExcalidrawCanvas").then(mod => ({ default: mod.ExcalidrawCanvas })), {
   ssr: false,
   loading: () => <Skeleton className="h-96 bg-slate-800" />,
 });
@@ -48,20 +41,18 @@ export default function SessionPage({ params }: PageProps) {
   const [sessionType, setSessionType] = useState("");
   const [experience, setExperience] = useState("");
   const [language, setLanguage] = useState("javascript");
-  const [hldFormData, setHldFormData] = useState<HLDFormData>({
-    functionalReqs: "",
-    nonFunctionalReqs: "",
-    entities: "",
-    apiDesign: "",
-    nfrPlan: "",
-  });
-  const excalidrawRef = useRef<any>(null);
 
   useEffect(() => {
     const initSession = async () => {
       try {
         const resolvedParams = await params;
         const exp = searchParams.get("exp") || "1-3";
+
+        // Route HLD to read page instead
+        if (resolvedParams.type === "hld") {
+          router.replace(`/session/hld/read?exp=${exp}`);
+          return;
+        }
 
         setSessionType(resolvedParams.type);
         setExperience(exp);
@@ -78,7 +69,7 @@ export default function SessionPage({ params }: PageProps) {
         const data = await response.json();
         setSessionData(data);
 
-        if (resolvedParams.type === "dsa" && data.problem) {
+        if (data.problem) {
           const savedCode = localStorage.getItem(`code-${data.sessionId}`);
           if (savedCode) {
             setCode(savedCode);
@@ -96,11 +87,10 @@ export default function SessionPage({ params }: PageProps) {
     };
 
     initSession();
-  }, [params, searchParams]);
+  }, [params, searchParams, router]);
 
-  // Auto-save code every 30s (DSA only)
+  // Auto-save code every 30s
   useEffect(() => {
-    if (sessionType !== "dsa") return;
     const interval = setInterval(() => {
       if (sessionData && code) {
         localStorage.setItem(`code-${sessionData.sessionId}`, code);
@@ -108,14 +98,10 @@ export default function SessionPage({ params }: PageProps) {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [sessionData, code, sessionType]);
+  }, [sessionData, code]);
 
   const handleTimerExpire = async () => {
-    if (sessionType === "hld") {
-      await handleHLDSubmit();
-    } else {
-      await submitSession("stuck");
-    }
+    await submitSession("stuck");
   };
 
   const handleLanguageChange = async (newLanguage: string) => {
@@ -249,88 +235,6 @@ export default function SessionPage({ params }: PageProps) {
     }
   };
 
-  const handleHLDSubmit = async () => {
-    if (!sessionData || !sessionData.scenario) return;
-
-    setSubmitting(true);
-
-    try {
-      // Get Excalidraw description
-      const excalidrawDescription = excalidrawRef.current?.getDescription?.() || "No diagram provided";
-
-      // Build combined diagram description
-      const diagramDescription = `
-Functional Requirements:
-${hldFormData.functionalReqs}
-
-Non-Functional Requirements:
-${hldFormData.nonFunctionalReqs}
-
-Core Entities:
-${hldFormData.entities}
-
-API Design:
-${hldFormData.apiDesign}
-
-NFR Deep Dives:
-${hldFormData.nfrPlan}
-
-Architecture Diagram:
-${excalidrawDescription}
-`.trim();
-
-      // Record session completion
-      const startTime = new Date(sessionData.startedAt).getTime();
-      const endTime = Date.now();
-      const timeMinutes = Math.round((endTime - startTime) / 60000);
-
-      const completeRes = await fetch("/api/session/complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId: sessionData.sessionId,
-          problemId: sessionData.scenario.id,
-          topic: "system-design",
-          result: "solved",
-          score: 3,
-          timeMinutes,
-          notes: "",
-          difficulty: sessionData.scenario.complexity,
-        }),
-      });
-
-      if (!completeRes.ok) throw new Error("Failed to complete session");
-
-      // Generate HLD report
-      const reportRes = await fetch("/api/report", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId: sessionData.sessionId,
-          type: "hld",
-          scenario: sessionData.scenario,
-          diagramDescription,
-          experience,
-          timeTakenMinutes: timeMinutes,
-          allocatedMinutes: Math.round(sessionData.duration / 60),
-        }),
-      });
-
-      if (!reportRes.ok) throw new Error("Failed to generate report");
-
-      const report = await reportRes.json();
-
-      // Redirect to report
-      setTimeout(() => {
-        router.push(`/report/${sessionData.sessionId}?data=${encodeURIComponent(JSON.stringify(report))}`);
-      }, 1000);
-    } catch (error) {
-      console.error("Error submitting HLD session:", error);
-      alert("Failed to submit session. Please try again.");
-      setSubmitting(false);
-    }
-  };
-
   const submitSession = (result: "solved" | "partial" | "stuck") => {
     handleSubmit(result);
   };
@@ -346,7 +250,7 @@ ${excalidrawDescription}
     );
   }
 
-  if (!sessionData) {
+  if (!sessionData || !sessionData.problem) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-6">
         <Card className="bg-slate-900 border-slate-800 max-w-md">
@@ -365,87 +269,24 @@ ${excalidrawDescription}
     );
   }
 
-  // HLD Session Rendering
-  if (sessionType === "hld" && sessionData.scenario) {
-    return (
-      <div className="min-h-screen bg-black flex flex-col">
-        {/* Header */}
-        <div className="border-b border-slate-800 bg-black/50 backdrop-blur sticky top-0 z-50">
-          <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-            <div className="flex-1">
-              <h1 className="text-lg font-bold text-white">{sessionData.scenario.title}</h1>
-              <div className="flex gap-2 mt-2">
-                <Badge variant="outline" className="border-slate-700">
-                  {sessionData.scenario.complexity}
-                </Badge>
-                <Badge variant="outline" className="border-slate-700">
-                  system-design
-                </Badge>
-              </div>
-            </div>
-
-            <SessionTimer
-              durationSeconds={sessionData.duration}
-              onExpire={handleTimerExpire}
-            />
-          </div>
-        </div>
-
-        {/* Main Content — Split Pane */}
-        <div className="flex-1 flex gap-6 max-w-7xl mx-auto w-full px-6 py-6 overflow-hidden">
-          {/* Left Panel — 45% */}
-          <div className="w-[45%] flex-shrink-0 overflow-hidden">
-            <HLDTemplate
-              scenario={sessionData.scenario}
-              value={hldFormData}
-              onChange={setHldFormData}
-            />
-          </div>
-
-          {/* Right Panel — 55% */}
-          <div className="w-[55%] flex flex-col gap-4 min-w-0 overflow-hidden">
-            {/* Canvas */}
-            <Card className="bg-slate-900 border-slate-800 flex-1 overflow-hidden min-h-0">
-              <ExcalidrawCanvas ref={excalidrawRef} />
-            </Card>
-
-            {/* Submit Button */}
-            <Button
-              onClick={handleHLDSubmit}
-              disabled={submitting}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              {submitting ? "Submitting..." : "Submit"}
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // DSA Session Rendering (original)
   return (
     <div className="min-h-screen bg-black flex flex-col">
       {/* Header with Timer */}
       <div className="border-b border-slate-800 bg-black/50 backdrop-blur sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex-1">
-            <h1 className="text-lg font-bold text-white">{sessionData.problem?.title}</h1>
+            <h1 className="text-lg font-bold text-white">{sessionData.problem.title}</h1>
             <div className="flex gap-2 mt-2">
               <Badge variant="outline" className="border-slate-700">
-                {sessionData.problem?.difficulty}
+                {sessionData.problem.difficulty}
               </Badge>
               <Badge variant="outline" className="border-slate-700">
-                {sessionData.problem?.topic.replace(/-/g, " ")}
+                {sessionData.problem.topic.replace(/-/g, " ")}
               </Badge>
             </div>
           </div>
 
-          <SessionTimer
-            durationSeconds={sessionData.duration}
-            onExpire={handleTimerExpire}
-          />
+          <SessionTimer durationSeconds={sessionData.duration} onExpire={handleTimerExpire} />
         </div>
       </div>
 
@@ -453,12 +294,12 @@ ${excalidrawDescription}
       <div className="flex-1 flex gap-6 max-w-7xl mx-auto w-full px-6 py-6 overflow-hidden">
         {/* Left Panel — 45% */}
         <div className="w-[45%] flex-shrink-0 flex flex-col gap-4 overflow-y-auto">
-          {sessionData.problem && <ProblemStatement problem={sessionData.problem} />}
+          <ProblemStatement problem={sessionData.problem} />
         </div>
 
         {/* Right Panel — 55% */}
         <div className="w-[55%] flex flex-col gap-4 min-w-0 overflow-hidden">
-          {/* Language Selector & Action Buttons */}
+          {/* Language Selector */}
           <div className="flex gap-3 items-center">
             <label className="text-sm font-semibold text-slate-300 whitespace-nowrap">Language:</label>
             <select
