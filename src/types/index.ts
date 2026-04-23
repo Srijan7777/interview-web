@@ -133,9 +133,18 @@ export interface SessionStartPayload {
 
 export interface SessionStartResponse {
   sessionId: string;
-  problem: Problem;
+  problem?: Problem;
+  scenario?: HLDScenario;
   startedAt: string;
   duration: number;
+}
+
+export interface HLDFormData {
+  functionalReqs: string;
+  nonFunctionalReqs: string;
+  entities: string;
+  apiDesign: string;
+  nfrPlan: string;
 }
 
 export interface HLDScenario {
