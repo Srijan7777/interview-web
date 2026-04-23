@@ -144,10 +144,36 @@ export default function SessionPage({ params }: PageProps) {
   };
 
   const handleSubmit = async (result: "solved" | "partial" | "stuck" = "solved") => {
+    if (!sessionData) return;
+
     setSubmitting(true);
 
     try {
-      if (!sessionData) return;
+      // Run tests first
+      const testResponse = await fetch("/api/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          language,
+          problemId: sessionData.problem.leetcodeNumber,
+        }),
+      });
+
+      const testResult = await testResponse.json();
+
+      if (!testResponse.ok) {
+        alert(testResult.error || "Failed to run tests");
+        setSubmitting(false);
+        return;
+      }
+
+      setTestResults(testResult);
+      setShowResults(true);
+
+      // Determine outcome based on test results
+      const allPassed = testResult.passed === testResult.total;
+      const finalResult: "solved" | "partial" | "stuck" = allPassed ? "solved" : "partial";
 
       // Record session completion
       const startTime = new Date(sessionData.startedAt).getTime();
@@ -161,8 +187,8 @@ export default function SessionPage({ params }: PageProps) {
           sessionId: sessionData.sessionId,
           problemId: sessionData.problem.id,
           topic: sessionData.problem.topic,
-          result,
-          score: 3,
+          result: finalResult,
+          score: allPassed ? 3 : 2,
           timeMinutes,
           notes: "",
           difficulty: sessionData.problem.difficulty,
@@ -193,12 +219,13 @@ export default function SessionPage({ params }: PageProps) {
       // Clear saved code
       localStorage.removeItem(`code-${sessionData.sessionId}`);
 
-      // Redirect to report
-      router.push(`/report/${sessionData.sessionId}?data=${encodeURIComponent(JSON.stringify(report))}`);
+      // Redirect to report after brief delay to show verdict
+      setTimeout(() => {
+        router.push(`/report/${sessionData.sessionId}?data=${encodeURIComponent(JSON.stringify(report))}`);
+      }, 1500);
     } catch (error) {
       console.error("Error submitting session:", error);
       alert("Failed to submit session. Please try again.");
-    } finally {
       setSubmitting(false);
     }
   };

@@ -169,10 +169,7 @@ public class Main {
 
   cpp: {
     1: `
-#include <iostream>
-#include <vector>
-#include <string>
-#include <sstream>
+#include <bits/stdc++.h>
 using namespace std;
 
 // USER_CODE
@@ -190,8 +187,7 @@ int main() {
 }
 `,
     3: `
-#include <iostream>
-#include <string>
+#include <bits/stdc++.h>
 using namespace std;
 
 // USER_CODE
@@ -205,8 +201,7 @@ int main() {
 }
 `,
     20: `
-#include <iostream>
-#include <string>
+#include <bits/stdc++.h>
 using namespace std;
 
 // USER_CODE
@@ -220,10 +215,7 @@ int main() {
 }
 `,
     121: `
-#include <iostream>
-#include <vector>
-#include <string>
-#include <sstream>
+#include <bits/stdc++.h>
 using namespace std;
 
 // USER_CODE
