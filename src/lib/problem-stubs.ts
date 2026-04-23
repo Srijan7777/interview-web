@@ -46,7 +46,7 @@ export const CODE_STUBS: Record<string, Record<number, string>> = {
   java: {
     1: `public int[] twoSum(int[] nums, int target) {
   // Write your solution here
-  return new int[]{};
+  return new int[]{0, 0};
 }`,
     3: `public int lengthOfLongestSubstring(String s) {
   // Write your solution here
@@ -65,7 +65,7 @@ export const CODE_STUBS: Record<string, Record<number, string>> = {
   cpp: {
     1: `vector<int> twoSum(vector<int>& nums, int target) {
   // Write your solution here
-  return {};
+  return {0, 0};
 }`,
     3: `int lengthOfLongestSubstring(string s) {
   // Write your solution here
