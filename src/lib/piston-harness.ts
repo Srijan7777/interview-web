@@ -1,4 +1,4 @@
-// Harness templates for Piston API execution
+// Harness templates for Judge0 API execution
 // Each harness reads stdin, calls user's solution, prints stdout
 // User code injected at // USER_CODE marker
 
@@ -57,35 +57,33 @@ rl.on('close', () => {
 
   python: {
     1: `
-import sys
-lines = sys.stdin.read().strip().split('\\n')
-n = int(lines[0])
-nums = list(map(int, lines[1].split()))
-target = int(lines[2])
 # USER_CODE
+
+n = int(input())
+nums = list(map(int, input().split()))
+target = int(input())
 result = twoSum(nums, target)
 print(*result)
 `,
     3: `
-import sys
-s = sys.stdin.read().strip()
 # USER_CODE
+
+s = input()
 result = lengthOfLongestSubstring(s)
 print(result)
 `,
     20: `
-import sys
-s = sys.stdin.read().strip()
 # USER_CODE
+
+s = input()
 result = isValid(s)
 print(result)
 `,
     121: `
-import sys
-lines = sys.stdin.read().strip().split('\\n')
-n = int(lines[0])
-prices = list(map(int, lines[1].split()))
 # USER_CODE
+
+n = int(input())
+prices = list(map(int, input().split()))
 result = maxProfit(prices)
 print(result)
 `,
@@ -96,9 +94,11 @@ print(result)
 import java.util.*;
 import java.io.*;
 
-public class Main {
+class Solution {
   // USER_CODE
+}
 
+public class Main {
   public static void main(String[] args) throws Exception {
     BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
     int n = Integer.parseInt(br.readLine().trim());
@@ -114,9 +114,11 @@ public class Main {
 import java.util.*;
 import java.io.*;
 
-public class Main {
+class Solution {
   // USER_CODE
+}
 
+public class Main {
   public static void main(String[] args) throws Exception {
     BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
     String s = br.readLine().trim();
@@ -130,9 +132,11 @@ public class Main {
 import java.util.*;
 import java.io.*;
 
-public class Main {
+class Solution {
   // USER_CODE
+}
 
+public class Main {
   public static void main(String[] args) throws Exception {
     BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
     String s = br.readLine().trim();
@@ -146,9 +150,11 @@ public class Main {
 import java.util.*;
 import java.io.*;
 
-public class Main {
+class Solution {
   // USER_CODE
+}
 
+public class Main {
   public static void main(String[] args) throws Exception {
     BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
     int n = Integer.parseInt(br.readLine().trim());
