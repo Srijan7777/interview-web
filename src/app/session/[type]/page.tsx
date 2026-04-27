@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+export const dynamic = "force-dynamic";
+
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import dynamic from "next/dynamic";
+import nextDynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +15,7 @@ import SessionTimer from "@/components/session/SessionTimer";
 import ProblemStatement from "@/components/session/ProblemStatement";
 import TestCasePanel from "@/components/session/TestCasePanel";
 
-const MonacoEditor = dynamic(() => import("@/components/session/MonacoEditor"), {
+const MonacoEditor = nextDynamic(() => import("@/components/session/MonacoEditor"), {
   ssr: false,
   loading: () => <Skeleton className="h-96 bg-slate-800" />,
 });
@@ -29,7 +31,15 @@ const LANGUAGES = [
   { value: "cpp", label: "C++" },
 ];
 
-export default function SessionPage({ params }: PageProps) {
+export default function SessionPageWrapper(props: PageProps) {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black" />}>
+      <SessionPage {...props} />
+    </Suspense>
+  );
+}
+
+function SessionPage({ params }: PageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [sessionData, setSessionData] = useState<SessionStartResponse | null>(null);
@@ -47,10 +57,24 @@ export default function SessionPage({ params }: PageProps) {
       try {
         const resolvedParams = await params;
         const exp = searchParams.get("exp") || "1-3";
+        const difficulty = searchParams.get("difficulty");
+        const diffSuffix = difficulty ? `&difficulty=${encodeURIComponent(difficulty)}` : "";
 
         // Route HLD to read page instead
         if (resolvedParams.type === "hld") {
-          router.replace(`/session/hld/read?exp=${exp}`);
+          router.replace(`/session/hld/read?exp=${exp}${diffSuffix}`);
+          return;
+        }
+
+        // Route LLD to read page instead
+        if (resolvedParams.type === "lld") {
+          router.replace(`/session/lld/read?exp=${exp}${diffSuffix}`);
+          return;
+        }
+
+        // Route DSA to round page instead
+        if (resolvedParams.type === "dsa") {
+          router.replace(`/session/dsa/round?exp=${exp}`);
           return;
         }
 
@@ -226,7 +250,7 @@ export default function SessionPage({ params }: PageProps) {
 
       // Redirect to report after brief delay to show verdict
       setTimeout(() => {
-        router.push(`/report/${sessionData.sessionId}?data=${encodeURIComponent(JSON.stringify(report))}`);
+        router.push(`/report/${sessionData.sessionId}`);
       }, 1500);
     } catch (error) {
       console.error("Error submitting session:", error);
@@ -343,21 +367,35 @@ export default function SessionPage({ params }: PageProps) {
 
             {/* Submit Verdict Banner */}
             {showResults && testResults && (
+              (() => {
+                const reviewOnly =
+                  testResults.results.length > 0 &&
+                  testResults.results.every(
+                    (result) => result.error === "Auto-check not available for this curated problem yet."
+                  );
+
+                return (
               <div
                 className={`p-3 rounded-lg border text-sm font-semibold ${
-                  testResults.passed === testResults.total
-                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
-                    : testResults.results.some((r) => r.error)
-                      ? "bg-red-500/10 border-red-500/30 text-red-300"
-                      : "bg-red-500/10 border-red-500/30 text-red-300"
+                  reviewOnly
+                    ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                    : testResults.passed === testResults.total
+                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                      : testResults.results.some((r) => r.error)
+                        ? "bg-red-500/10 border-red-500/30 text-red-300"
+                        : "bg-red-500/10 border-red-500/30 text-red-300"
                 }`}
               >
-                {testResults.passed === testResults.total
-                  ? `✓ Accepted — ${testResults.passed}/${testResults.total} test cases passed`
-                  : testResults.results.some((r) => r.error)
-                    ? "✗ Compilation Error"
-                    : `✗ Wrong Answer — ${testResults.passed}/${testResults.total} test cases passed`}
+                {reviewOnly
+                  ? "Review mode - this curated problem does not have an executable harness yet."
+                  : testResults.passed === testResults.total
+                    ? `✓ Accepted — ${testResults.passed}/${testResults.total} test cases passed`
+                    : testResults.results.some((r) => r.error)
+                      ? "✗ Compilation Error"
+                      : `✗ Wrong Answer — ${testResults.passed}/${testResults.total} test cases passed`}
               </div>
+                );
+              })()
             )}
 
             {/* Test Cases Panel */}

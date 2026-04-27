@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+export const dynamic = "force-dynamic";
+
+import { useEffect, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import dynamic from "next/dynamic";
+import nextDynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +14,9 @@ import { SessionStartResponse, HLDScenario, HLDFormData } from "@/types";
 import SessionTimer from "@/components/session/SessionTimer";
 import HLDTemplate from "@/components/session/HLDTemplate";
 import HLDDesignHints from "@/components/session/HLDDesignHints";
+import { recordSolved } from "@/lib/solved-tracker";
 
-const ExcalidrawCanvas = dynamic(
+const ExcalidrawCanvas = nextDynamic(
   () => import("@/components/session/ExcalidrawCanvas").then((mod) => ({ default: mod.ExcalidrawCanvas })),
   {
     ssr: false,
@@ -23,7 +26,7 @@ const ExcalidrawCanvas = dynamic(
 
 const STORAGE_KEY_PREFIX = "hld-form-";
 
-export default function HLDDesignPage() {
+function HLDDesignPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [sessionData, setSessionData] = useState<SessionStartResponse | null>(null);
@@ -90,11 +93,31 @@ export default function HLDDesignPage() {
   const handleHLDSubmit = async () => {
     if (!sessionData || !sessionData.scenario) return;
 
+    // Validate: require either a diagram OR meaningful form content
+    const excalidrawDescription = excalidrawRef.current?.getDescription?.() || "No diagram provided";
+    const hasDiagram =
+      excalidrawDescription !== "No diagram provided" &&
+      excalidrawDescription.trim().length > 10;
+    const filledFields = Object.values(hldFormData).filter(
+      (v) => typeof v === "string" && v.trim().length >= 10
+    ).length;
+
+    if (!hasDiagram && filledFields === 0) {
+      alert(
+        "Please draw your architecture in the canvas, or fill in at least one section of the design template (functional/non-functional/entities/API/NFR plan) before submitting."
+      );
+      return;
+    }
+    if (!hasDiagram && filledFields < 2) {
+      const proceed = confirm(
+        `Only ${filledFields} of 5 sections has meaningful content and you haven't drawn a diagram. The AI report quality will be limited. Submit anyway?`
+      );
+      if (!proceed) return;
+    }
+
     setSubmitting(true);
 
     try {
-      // Get Excalidraw description
-      const excalidrawDescription = excalidrawRef.current?.getDescription?.() || "No diagram provided";
 
       // Build combined diagram description
       const diagramDescription = `
@@ -133,11 +156,23 @@ ${excalidrawDescription}
           score: 3,
           timeMinutes,
           notes: "",
-          difficulty: sessionData.scenario.complexity,
+          difficulty: sessionData.scenario.difficulty,
         }),
       });
 
       if (!completeRes.ok) throw new Error("Failed to complete session");
+
+      // Record locally for the dashboard
+      recordSolved({
+        problemId: sessionData.scenario.id,
+        title: sessionData.scenario.title,
+        leetcodeNumber: 0,
+        topic: "system-design",
+        difficulty: sessionData.scenario.difficulty,
+        result: "solved",
+        date: new Date().toISOString(),
+        track: "hld",
+      });
 
       // Generate HLD report
       const reportRes = await fetch("/api/report", {
@@ -163,7 +198,7 @@ ${excalidrawDescription}
 
       // Redirect to report
       setTimeout(() => {
-        router.push(`/report/${sessionData.sessionId}?data=${encodeURIComponent(JSON.stringify(report))}`);
+        router.push(`/report/${sessionData.sessionId}`);
       }, 1000);
     } catch (error) {
       console.error("Error submitting HLD session:", error);
@@ -189,12 +224,13 @@ ${excalidrawDescription}
         <Card className="bg-slate-900 border-slate-800 max-w-md">
           <div className="p-6 flex flex-col items-center gap-4">
             <AlertCircle className="w-12 h-12 text-red-500" />
-            <h2 className="text-xl font-bold">Failed to Load Design Session</h2>
+            <h2 className="text-xl font-bold">Session Expired</h2>
             <p className="text-slate-400 text-center">
-              Could not initialize your design session. Please try again.
+              Your session is no longer available — this can happen after the server restarts.
+              Please start a new session.
             </p>
             <Button onClick={() => router.push("/setup")} className="w-full">
-              Back to Setup
+              Start New Session
             </Button>
           </div>
         </Card>
@@ -213,7 +249,7 @@ ${excalidrawDescription}
             <h1 className="text-lg font-bold text-white">{scenario.title}</h1>
             <div className="flex gap-2 mt-2">
               <Badge variant="outline" className="border-slate-700">
-                {scenario.complexity}
+                {scenario.difficulty}
               </Badge>
               <Badge variant="outline" className="border-slate-700">
                 system-design
@@ -266,5 +302,13 @@ ${excalidrawDescription}
         </div>
       </div>
     </div>
+  );
+}
+
+export default function HLDDesignPageWithSuspense() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black" />}>
+      <HLDDesignPage />
+    </Suspense>
   );
 }

@@ -8,7 +8,8 @@ import {
   Topics,
   DailyProblem,
 } from "@/types";
-import { getCodeStub, getExamples } from "@/lib/problem-stubs";
+import { getCodeStub } from "@/lib/problem-stubs";
+import { DSA_KNOWLEDGE_BANK, type KnowledgeBankEntry } from "@/lib/dsa-knowledge-bank";
 
 const CLI_ROOT = process.env.CLI_DATA_PATH ?? "C:\\Users\\Admin\\interview-prep";
 
@@ -76,13 +77,26 @@ function readJSONLTail(filePath: string, n: number): unknown[] {
 }
 
 export async function getProblemBank(): Promise<{ problems: Problem[] }> {
-  return readJSON<{ problems: Problem[] }>(PATHS.bank);
+  return {
+    problems: DSA_KNOWLEDGE_BANK.problems.map((entry) => materializeProblem(entry)),
+  };
 }
 
 export async function getTodaysProblem(): Promise<DailyProblem> {
   // Advance topic if needed
   const topics = readJSON<Topics>(PATHS.topics);
   const today = new Date().toISOString().split("T")[0];
+
+  const bankRotation = DSA_KNOWLEDGE_BANK.rotation;
+  const rotationMismatch =
+    topics.rotation.length !== bankRotation.length ||
+    topics.rotation.some((topic, index) => topic !== bankRotation[index]);
+
+  if (rotationMismatch) {
+    topics.rotation = bankRotation;
+    topics.currentIndex = topics.currentIndex % topics.rotation.length;
+    writeJSON(PATHS.topics, topics);
+  }
 
   if (topics.lastAdvancedDate !== today) {
     topics.currentIndex = (topics.currentIndex + 1) % topics.rotation.length;
@@ -91,23 +105,23 @@ export async function getTodaysProblem(): Promise<DailyProblem> {
   }
 
   const todayTopic = topics.rotation[topics.currentIndex];
-  const bank = await getProblemBank();
+  const bank = DSA_KNOWLEDGE_BANK.problems;
   const attempted = readJSON<{ attempted: AttemptedProblem[] }>(PATHS.attempted);
 
   const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
     .toISOString()
     .split("T")[0];
 
-  let topicProblems = bank.problems
-    .filter((p) => p.topic === todayTopic)
-    .map((p) => {
-      const attemptRecord = attempted.attempted.find((a) => a.problemId === p.id);
+  let topicProblems = bank
+    .filter((entry) => entry.problem.topic === todayTopic)
+    .map((entry) => {
+      const attemptRecord = attempted.attempted.find((a) => a.problemId === entry.problem.id);
       if (!attemptRecord) {
-        return { ...p, timesAttempted: 0, lastAttemptDate: null };
+        return { ...entry, timesAttempted: 0, lastAttemptDate: null };
       }
       const lastDate = attemptRecord.dates[attemptRecord.dates.length - 1];
       return {
-        ...p,
+        ...entry,
         timesAttempted: attemptRecord.dates.length,
         lastAttemptDate: lastDate,
       };
@@ -125,10 +139,10 @@ export async function getTodaysProblem(): Promise<DailyProblem> {
     });
 
   if (topicProblems.length === 0) {
-    const allTopicProblems = bank.problems
-      .filter((p) => p.topic === todayTopic)
-      .map((p) => ({
-        ...p,
+    const allTopicProblems = bank
+      .filter((entry) => entry.problem.topic === todayTopic)
+      .map((entry) => ({
+        ...entry,
         timesAttempted: 0,
         lastAttemptDate: null,
       }));
@@ -138,11 +152,7 @@ export async function getTodaysProblem(): Promise<DailyProblem> {
   const selected = topicProblems[0] as any;
 
   // Attach code stub and examples
-  const problemWithStub: Problem = {
-    ...selected,
-    codeStub: getCodeStub(selected.leetcodeNumber),
-    examples: getExamples(selected.leetcodeNumber),
-  };
+  const problemWithStub = materializeProblem(selected);
 
   const daily: DailyProblem = {
     date: today,
@@ -211,3 +221,20 @@ export async function updateAttempted(
 }
 
 export { PATHS };
+
+function materializeProblem(
+  entry: KnowledgeBankEntry & Partial<{ timesAttempted: number; lastAttemptDate: string | null }>
+): Problem {
+  return {
+    ...entry.problem,
+    description: entry.interviewSignal,
+    examples: entry.canonicalCases.map((testCase) => ({
+      input: testCase.input,
+      output: testCase.output,
+      explanation: testCase.notes,
+    })),
+    codeStub: getCodeStub(entry.problem.leetcodeNumber),
+    timesAttempted: entry.timesAttempted,
+    lastAttemptDate: entry.lastAttemptDate ?? null,
+  };
+}

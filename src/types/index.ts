@@ -88,7 +88,7 @@ export interface SessionTestResult {
 export interface SessionReport {
   sessionId: string;
   generatedAt: string;
-  sessionType: "dsa" | "hld";
+  sessionType: "dsa" | "hld" | "lld";
   experience: string;
   problem: {
     id: string;
@@ -123,10 +123,14 @@ export interface SessionReport {
     suggestedTopics: string[];
     nextDifficulty: "easy" | "medium" | "hard";
   };
+  reference?: {
+    url: string;
+    label: string;
+  };
 }
 
 export interface SessionStartPayload {
-  type: "dsa" | "hld";
+  type: "dsa" | "hld" | "lld";
   experience: string;
   problemId?: string;
 }
@@ -135,6 +139,7 @@ export interface SessionStartResponse {
   sessionId: string;
   problem?: Problem;
   scenario?: HLDScenario;
+  lldScenario?: LLDScenario;
   startedAt: string;
   duration: number;
 }
@@ -152,7 +157,19 @@ export interface HLDScenario {
   title: string;
   prompt: string;
   requirements: string[];
-  complexity: "beginner" | "intermediate" | "advanced";
+  difficulty: "easy" | "medium" | "hard";
+  referenceUrl?: string;
+  referenceLabel?: string;
+}
+
+export interface LLDScenario {
+  id: string;
+  title: string;
+  prompt: string;
+  requirements: string[];
+  difficulty: "easy" | "medium" | "hard";
+  referenceUrl?: string;
+  referenceLabel?: string;
 }
 
 export interface Topics {
@@ -166,4 +183,53 @@ export interface DailyProblem {
   date: string;
   topic: string;
   problem: Problem;
+}
+
+export interface DsaRoundQuestion {
+  index: number;
+  problem: Problem;
+  allocatedMinutes: number;
+  status: "pending" | "in-progress" | "completed" | "skipped";
+  result?: "solved" | "partial" | "stuck";
+  code?: string;
+  language?: string;
+  timeTakenMinutes?: number;
+  testPassed?: number;
+  testTotal?: number;
+  score?: number;
+}
+
+export interface DsaRound {
+  roundId: string;
+  experience: string;
+  questions: DsaRoundQuestion[];
+  startedAt: string;
+  status: "in-progress" | "completed";
+}
+
+export interface FollowUp {
+  question: string;
+  difficulty: "easy" | "medium" | "hard";
+  hint: string;
+}
+
+export interface CoachMessage {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+}
+
+export interface WeaknessEntry {
+  topic: string;
+  score: number;
+  date: string;
+  problemTitle: string;
+}
+
+export interface DsaRoundReport extends SessionReport {
+  questions: DsaRoundQuestion[];
+  totalAllocatedMinutes: number;
+  totalTimeTakenMinutes: number;
+  followUps?: Record<string, FollowUp[]>;
+  weakTopics?: string[];
 }

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { PISTON_TEST_CASES } from "@/lib/problem-stubs";
 import { getHarness } from "@/lib/piston-harness";
+import { getKnowledgeBankProblemById } from "@/lib/dsa-knowledge-bank";
 
 interface TestRequest {
   code: string;
@@ -100,13 +101,6 @@ export async function POST(request: NextRequest) {
     }
 
     const testCases = PISTON_TEST_CASES[problemId];
-    if (!testCases || testCases.length === 0) {
-      return Response.json(
-        { error: "No test cases found for this problem" },
-        { status: 404 }
-      );
-    }
-
     const languageId = LANGUAGE_MAP[language];
     if (!languageId) {
       return Response.json(
@@ -115,93 +109,110 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const results: TestResult["results"] = [];
-    let passedCount = 0;
+    if (!testCases || testCases.length === 0) {
+      const curatedProblem = getKnowledgeBankProblemById(problemId);
+      if (!curatedProblem) {
+        return Response.json(
+          { error: "No test cases found for this problem" },
+          { status: 404 }
+        );
+      }
 
-    for (let i = 0; i < testCases.length; i++) {
-      const testCase = testCases[i];
+      return Response.json({
+        passed: 0,
+        total: curatedProblem.canonicalCases.length,
+        results: curatedProblem.canonicalCases.map((testCase, index) => ({
+          testCase: index + 1,
+          label: testCase.label,
+          passed: false,
+          expected: testCase.output,
+          error: "Auto-check not available for this curated problem yet.",
+        })),
+      } as TestResult);
+    }
 
+    // Get harness for this language/problem once, outside the loop
+    const harness = getHarness(language, problemId);
+    if (!harness) {
+      return Response.json({
+        passed: 0,
+        total: testCases.length,
+        results: testCases.map((testCase, index) => ({
+          testCase: index + 1,
+          label: testCase.label,
+          passed: false,
+          expected: testCase.expected,
+          error: "No harness template for this problem",
+        })),
+      } as TestResult);
+    }
+
+    // Inject user code into harness once
+    const fullSource = harness.replace("// USER_CODE", code);
+
+    // Execute test cases in parallel
+    const testPromises = testCases.map(async (testCase, i) => {
       try {
-        // Get harness for this language/problem
-        const harness = getHarness(language, problemId);
-        if (!harness) {
-          results.push({
-            testCase: i + 1,
-            label: testCase.label,
-            passed: false,
-            expected: testCase.expected,
-            error: "No harness template for this problem",
-          });
-          continue;
-        }
-
-        // Inject user code into harness
-        const fullSource = harness.replace("// USER_CODE", code);
-
         // Execute via Judge0 CE
         const execResult = await executeWithJudge0(languageId, fullSource, testCase.stdin);
 
         // Check for compile errors (status_id 6 = compilation error)
         if (execResult.status_id === 6 && execResult.compile_output) {
-          results.push({
+          return {
             testCase: i + 1,
             label: testCase.label,
             passed: false,
             expected: testCase.expected,
             error: `Compilation Error:\n${execResult.compile_output}`,
-          });
-          continue;
+          };
         }
 
         // Check for runtime errors (status_id 5 = runtime error)
         if (execResult.status_id === 5 && execResult.stderr) {
-          results.push({
+          return {
             testCase: i + 1,
             label: testCase.label,
             passed: false,
             expected: testCase.expected,
             error: `Runtime Error:\n${execResult.stderr}`,
-          });
-          continue;
+          };
         }
 
         // Status 3 = accepted (success)
         if (execResult.status_id !== 3) {
-          results.push({
+          return {
             testCase: i + 1,
             label: testCase.label,
             passed: false,
             expected: testCase.expected,
             error: `Execution failed with status ${execResult.status_id}`,
-          });
-          continue;
+          };
         }
 
         const actual = execResult.stdout.trim();
         const expected = testCase.expected.trim();
         const passed = actual === expected;
 
-        if (passed) {
-          passedCount++;
-        }
-
-        results.push({
+        return {
           testCase: i + 1,
           label: testCase.label,
           passed,
           expected,
           actual,
-        });
+        };
       } catch (err: any) {
-        results.push({
+        return {
           testCase: i + 1,
           label: testCase.label,
           passed: false,
           expected: testCase.expected,
           error: err.message || "Unknown error",
-        });
+        };
       }
-    }
+    });
+
+    const results = await Promise.all(testPromises);
+    const passedCount = results.filter((r) => r.passed).length;
 
     return Response.json({
       passed: passedCount,

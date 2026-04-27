@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatTime } from "@/lib/utils";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Timer } from "lucide-react";
 
 interface SessionTimerProps {
   durationSeconds: number;
@@ -42,32 +42,63 @@ export default function SessionTimer({
   const isWarning = percentage < 50;
   const isCritical = percentage < 20;
 
-  let bgColor = "bg-emerald-600";
-  let textColor = "text-emerald-400";
-
-  if (isWarning && !isCritical) {
-    bgColor = "bg-amber-600";
-    textColor = "text-amber-400";
-  } else if (isCritical) {
-    bgColor = "bg-red-600";
-    textColor = "text-red-400";
-  }
+  // Tone palette
+  const tone = isCritical
+    ? {
+        text: "text-red-300",
+        ring: "ring-red-500/30",
+        bg: "bg-red-500/[0.07]",
+        bar: "bg-red-500",
+        dot: "bg-red-400",
+        label: "Critical",
+      }
+    : isWarning
+      ? {
+          text: "text-amber-300",
+          ring: "ring-amber-500/30",
+          bg: "bg-amber-500/[0.06]",
+          bar: "bg-amber-400",
+          dot: "bg-amber-400",
+          label: "Halfway",
+        }
+      : {
+          text: "text-emerald-300",
+          ring: "ring-emerald-500/25",
+          bg: "bg-emerald-500/[0.05]",
+          bar: "bg-emerald-400",
+          dot: "bg-emerald-400",
+          label: "On track",
+        };
 
   return (
-    <div className="flex flex-col items-center gap-2">
-      <div
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg border ${bgColor === "bg-emerald-600" ? "border-emerald-600/30 bg-emerald-600/10" : bgColor === "bg-amber-600" ? "border-amber-600/30 bg-amber-600/10" : "border-red-600/30 bg-red-600/10"} ${isCritical ? "animate-pulse" : ""}`}
-      >
-        {isCritical && <AlertCircle className={`w-5 h-5 ${textColor}`} />}
-        <span className={`font-bold text-lg font-mono ${textColor}`}>
-          {formatTime(remaining)}
-        </span>
+    <div
+      className={`flex items-center gap-3 rounded-md ring-1 ${tone.ring} ${tone.bg} pl-3 pr-1 py-1.5`}
+    >
+      <div className="flex items-center gap-2">
+        {isCritical ? (
+          <AlertCircle className={`w-4 h-4 ${tone.text} animate-pulse`} />
+        ) : (
+          <Timer className={`w-3.5 h-3.5 ${tone.text}`} />
+        )}
+        <div className="flex flex-col leading-none">
+          <span
+            className={`session-eyebrow text-[9px] ${tone.text} opacity-75`}
+          >
+            {tone.label}
+          </span>
+        </div>
       </div>
 
-      {/* Progress bar */}
-      <div className="w-32 h-1 bg-slate-800 rounded-full overflow-hidden">
+      <div
+        className={`num-badge font-bold text-[15px] tracking-tight ${tone.text}`}
+      >
+        {formatTime(remaining)}
+      </div>
+
+      {/* Horizontal micro progress bar */}
+      <div className="w-20 h-1 bg-slate-800/70 rounded-full overflow-hidden mr-2">
         <div
-          className={`h-full ${bgColor} transition-all duration-1000`}
+          className={`h-full ${tone.bar} transition-all duration-1000 ease-out`}
           style={{ width: `${percentage}%` }}
         />
       </div>

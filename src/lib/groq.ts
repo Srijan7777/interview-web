@@ -1,4 +1,4 @@
-import { Problem, SessionReport } from "@/types";
+import { Problem, SessionReport, DsaRound, DsaRoundReport } from "@/types";
 
 const GROQ_API = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = "llama-3.3-70b-versatile";
@@ -174,6 +174,9 @@ export async function generateDSAReportGroq(params: {
     missing: parsed.missing,
     optimalApproach: parsed.optimalApproach,
     recommendation: parsed.recommendation,
+    reference: params.problem.url
+      ? { url: params.problem.url, label: "LeetCode" }
+      : undefined,
   };
 }
 
@@ -183,6 +186,8 @@ export async function generateHLDReportGroq(params: {
   diagramDescription: string;
   experience: string;
   timeTakenMinutes: number;
+  referenceUrl?: string;
+  referenceLabel?: string;
 }): Promise<SessionReport> {
   const prompt = buildHLDPrompt(params);
   const text = await callGroq(prompt);
@@ -207,5 +212,194 @@ export async function generateHLDReportGroq(params: {
     missing: parsed.missing,
     optimalApproach: parsed.optimalApproach,
     recommendation: parsed.recommendation,
+    reference: params.referenceUrl
+      ? { url: params.referenceUrl, label: params.referenceLabel || "Reference" }
+      : undefined,
+  };
+}
+
+export async function generateRoundReport(round: DsaRound, experience: string): Promise<DsaRoundReport> {
+  const questionsText = round.questions
+    .map((q, i) => {
+      const timeStr = q.timeTakenMinutes !== undefined ? `${q.timeTakenMinutes}/${q.allocatedMinutes}` : "N/A";
+      return `Q${i + 1}: ${q.problem.title} (${q.problem.difficulty})
+Time: ${timeStr} min
+Result: ${q.result || "not attempted"}
+Tests: ${q.testPassed ?? 0}/${q.testTotal ?? 0}
+Code: ${q.code || "N/A"}`;
+    })
+    .join("\n\n");
+
+  const prompt = `You are a senior FAANG interviewer evaluating a multi-question coding round.
+
+## Round Summary
+- Experience: ${experience} years
+- Total Questions: ${round.questions.length}
+- Total Time Allocated: ${round.questions.reduce((s, q) => s + q.allocatedMinutes, 0)} min
+- Total Time Taken: ${round.questions.reduce((s, q) => s + (q.timeTakenMinutes || 0), 0)} min
+
+## Detailed Question Breakdown
+${questionsText}
+
+Evaluate each question separately and provide an overall round score.
+
+Return ONLY valid JSON matching this exact shape:
+{
+  "questions": [
+    { "index": 0, "score": 8, "feedback": "Strong solution" }
+  ],
+  "score": {
+    "overall": 8,
+    "breakdown": {
+      "correctness": 8,
+      "efficiency": 7,
+      "clarity": 9,
+      "completeness": 8
+    }
+  },
+  "strengths": ["list of strengths"],
+  "issues": ["list of issues"],
+  "improvements": ["list of improvements"],
+  "missing": ["list of missing items"],
+  "optimalApproach": {
+    "summary": "overall summary of how to approach these problems",
+    "timeComplexity": "varies per question",
+    "spaceComplexity": "varies per question",
+    "keyInsights": ["pattern insight 1", "pattern insight 2"]
+  },
+  "recommendation": {
+    "shouldRetry": false,
+    "suggestedTopics": ["topic1", "topic2"],
+    "nextDifficulty": "medium"
+  },
+  "followUps": {
+    "0": [
+      { "question": "What if the input was a stream?", "difficulty": "medium", "hint": "Think about memory" },
+      { "question": "How to handle duplicates?", "difficulty": "easy", "hint": "Hash set" }
+    ],
+    "1": [ { "question": "Optimize for space", "difficulty": "hard", "hint": "In-place" } ]
+  },
+  "weakTopics": ["dynamic-programming", "graphs"]
+}`;
+
+  const text = await callGroq(prompt);
+  const parsed = JSON.parse(text);
+
+  const report: DsaRoundReport = {
+    sessionId: "",
+    generatedAt: new Date().toISOString(),
+    sessionType: "dsa",
+    experience: experience,
+    problem: {
+      id: "",
+      title: `Round: ${round.questions.length} Questions`,
+      topic: "dsa-round",
+      difficulty: "hard",
+      leetcodeNumber: 0,
+    },
+    score: parsed.score || { overall: 5, breakdown: { correctness: 5, efficiency: 5, clarity: 5, completeness: 5 } },
+    strengths: parsed.strengths || [],
+    issues: parsed.issues || [],
+    improvements: parsed.improvements || [],
+    missing: parsed.missing || [],
+    optimalApproach: parsed.optimalApproach || { summary: "", keyInsights: [] },
+    recommendation: parsed.recommendation || { shouldRetry: true, suggestedTopics: [], nextDifficulty: "medium" },
+    questions: round.questions,
+    totalAllocatedMinutes: round.questions.reduce((s, q) => s + q.allocatedMinutes, 0),
+    totalTimeTakenMinutes: round.questions.reduce((s, q) => s + (q.timeTakenMinutes || 0), 0),
+    followUps: parsed.followUps || {},
+    weakTopics: parsed.weakTopics || [],
+  };
+
+  return report;
+}
+
+function buildLLDPrompt(params: {
+  title: string;
+  requirements: string[];
+  code: string;
+  experience: string;
+  timeTakenMinutes: number;
+}): string {
+  return `You are a principal engineer evaluating a FAANG Low-Level Design (LLD) interview.
+
+## Candidate Profile
+- Experience: ${params.experience} years
+- Time taken: ${params.timeTakenMinutes} min
+
+## System Design Prompt
+${params.title}
+
+## Requirements
+${params.requirements.map((r) => `- ${r}`).join("\n")}
+
+## Candidate Code
+${params.code}
+
+Evaluate strictly on OOD principles (SOLID, patterns, modularity).
+
+Respond with ONLY valid JSON:
+{
+  "score": {
+    "overall": <1-10>,
+    "breakdown": {
+      "correctness": <1-10>,
+      "efficiency": <1-10>,
+      "clarity": <1-10>,
+      "completeness": <1-10>
+    }
+  },
+  "strengths": ["<strength1>", "<strength2>"],
+  "issues": ["<issue1>", "<issue2>"],
+  "improvements": ["<improvement1>", "<improvement2>"],
+  "missing": ["<missing1>", "<missing2>"],
+  "optimalApproach": {
+    "summary": "<3-4 sentences on ideal class structure>",
+    "pseudocode": "<core classes and relationships>",
+    "keyInsights": ["<insight1>", "<insight2>"]
+  },
+  "recommendation": {
+    "shouldRetry": <boolean>,
+    "suggestedTopics": ["<topic1>", "<topic2>"],
+    "nextDifficulty": "easy"|"medium"|"hard"
+  }
+}`;
+}
+
+export async function generateLLDReportGroq(params: {
+  title: string;
+  requirements: string[];
+  code: string;
+  experience: string;
+  timeTakenMinutes: number;
+  referenceUrl?: string;
+  referenceLabel?: string;
+}): Promise<SessionReport> {
+  const prompt = buildLLDPrompt(params);
+  const text = await callGroq(prompt);
+  const parsed = JSON.parse(text);
+
+  return {
+    sessionId: "",
+    generatedAt: new Date().toISOString(),
+    sessionType: "lld",
+    experience: params.experience,
+    problem: {
+      id: "",
+      title: params.title,
+      topic: "low-level-design",
+      difficulty: "hard",
+      leetcodeNumber: 0,
+    },
+    score: parsed.score,
+    strengths: parsed.strengths,
+    issues: parsed.issues,
+    improvements: parsed.improvements,
+    missing: parsed.missing,
+    optimalApproach: parsed.optimalApproach,
+    recommendation: parsed.recommendation,
+    reference: params.referenceUrl
+      ? { url: params.referenceUrl, label: params.referenceLabel || "Reference" }
+      : undefined,
   };
 }

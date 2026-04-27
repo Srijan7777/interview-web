@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+export const dynamic = "force-dynamic";
+
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,7 +14,7 @@ import SessionTimer from "@/components/session/SessionTimer";
 import HLDDesignHints from "@/components/session/HLDDesignHints";
 import ExampleArchitectures from "@/components/session/ExampleArchitectures";
 
-export default function HLDReadPage() {
+function HLDReadPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [sessionData, setSessionData] = useState<SessionStartResponse | null>(null);
@@ -21,12 +23,17 @@ export default function HLDReadPage() {
   useEffect(() => {
     const initSession = async () => {
       try {
+        const difficultyRaw = searchParams.get("difficulty");
+        const difficulty = difficultyRaw
+          ? difficultyRaw.split(",").filter(Boolean)
+          : undefined;
         const response = await fetch("/api/session/start", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: "hld",
             experience: searchParams.get("exp") || "1-3",
+            ...(difficulty && difficulty.length > 0 ? { difficulty } : {}),
           }),
         });
 
@@ -83,7 +90,7 @@ export default function HLDReadPage() {
             <h1 className="text-lg font-bold text-white">{scenario.title}</h1>
             <div className="flex gap-2 mt-2">
               <Badge variant="outline" className="border-slate-700">
-                {scenario.complexity}
+                {scenario.difficulty}
               </Badge>
               <Badge variant="outline" className="border-slate-700">
                 system-design
@@ -154,5 +161,13 @@ export default function HLDReadPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function HLDReadPageWithSuspense() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black" />}>
+      <HLDReadPage />
+    </Suspense>
   );
 }

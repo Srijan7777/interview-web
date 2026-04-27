@@ -3,7 +3,11 @@
 import { useRef, forwardRef, useImperativeHandle } from "react";
 import { Excalidraw } from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
-import type { ExcalidrawAPI } from "@excalidraw/excalidraw/types";
+
+// Excalidraw's runtime type isn't reliably re-exported across versions; use a structural type.
+type ExcalidrawAPI = {
+  getSceneElements: () => readonly { type: string; text?: string }[];
+};
 
 interface ExcalidrawCanvasHandle {
   getDescription: () => string;
@@ -11,7 +15,7 @@ interface ExcalidrawCanvasHandle {
 }
 
 export const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasHandle>((_, ref) => {
-  const excalidrawAPI = useRef<ExcalidrawAPI>(null);
+  const excalidrawAPI = useRef<ExcalidrawAPI | null>(null);
 
   useImperativeHandle(ref, () => ({
     getDescription: () => {
@@ -40,7 +44,7 @@ export const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasHandle>((_, ref) => {
     <div className="w-full h-full rounded-lg overflow-hidden border border-slate-700">
       <Excalidraw
         excalidrawAPI={(api) => {
-          excalidrawAPI.current = api;
+          excalidrawAPI.current = api as unknown as ExcalidrawAPI;
         }}
         initialData={{
           elements: [],

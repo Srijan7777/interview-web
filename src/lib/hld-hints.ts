@@ -68,12 +68,14 @@ export function getDesignHints(scenario: HLDScenario): string[] {
   ];
 }
 
-export function getExampleArchitectures(scenario: HLDScenario): {
+type ArchExample = {
   title: string;
   description: string;
   components: string[];
-}[] {
-  const examples: Record<string, typeof examples[string]> = {
+};
+
+export function getExampleArchitectures(scenario: HLDScenario): ArchExample[] {
+  const examples: Record<string, ArchExample[]> = {
     "url-shortener": [
       {
         title: "Simple Architecture",

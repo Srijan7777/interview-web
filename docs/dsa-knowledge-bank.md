@@ -10,7 +10,7 @@ This bank is a curated first pass for big-tech interview prep.
 
 ## What Is Included
 
-- 21 high-signal problems across arrays, stacks, windows, intervals, binary search, graphs, DP, heap, design, and trie.
+- 35 high-signal problems across arrays, stacks, windows, intervals, binary search, graphs, DP, heap, linked lists, trees, backtracking, design, and trie.
 - Company targeting biased toward `google`, `amazon`, `meta`, `microsoft`, with `apple` added on patterns that commonly overlap.
 - Canonical test cases that focus on the inputs interviewers actually probe: duplicates, empty-ish edge cases, rotation, zero handling, cycles, and eviction behavior.
 
@@ -24,10 +24,17 @@ This bank is a curated first pass for big-tech interview prep.
 ## Files
 
 - Structured bank: [`src/lib/dsa-knowledge-bank.ts`](../src/lib/dsa-knowledge-bank.ts)
+- Batch API for multiple questions: [`src/app/api/problems/batch/route.ts`](../src/app/api/problems/batch/route.ts)
 - This summary: [`docs/dsa-knowledge-bank.md`](dsa-knowledge-bank.md)
+
+## Multiple Questions
+
+- Use the batch API to fetch a curated set of questions in one request.
+- Filter by `topics`, `companies`, `difficulties`, and `limit`.
+- The selector rotates across topics so a 5-question batch is not just five near-duplicates from the same bucket.
 
 ## Next Expansion
 
-- Add linked list, tree, backtracking, and advanced design variants in a second pass.
+- Add graph-hard, dynamic-programming-hard, and tree-variant follow-ups in a third pass.
 - Split the bank by company if you want company-specific rotations later.
 - Wire the bank into the live session picker after the runner gets harnesses for the new problems.

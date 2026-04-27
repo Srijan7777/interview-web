@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
-import { generateDSAReport, generateHLDReport } from "@/lib/claude";
-import { generateDSAReportGroq, generateHLDReportGroq } from "@/lib/groq";
+import { generateDSAReport, generateHLDReport, generateLLDReport } from "@/lib/claude";
+import { generateDSAReportGroq, generateHLDReportGroq, generateLLDReportGroq } from "@/lib/groq";
+import { reportCache } from "@/lib/report-cache";
 import { SessionReport } from "@/types";
 
 export async function POST(request: NextRequest) {
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
       scenario,
     } = body;
 
-    if (!sessionId || !type || !experience || !timeTakenMinutes || !allocatedMinutes) {
+    if (!sessionId || !type || !experience || timeTakenMinutes == null || !allocatedMinutes) {
       return Response.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -80,6 +81,8 @@ export async function POST(request: NextRequest) {
             diagramDescription,
             experience,
             timeTakenMinutes,
+            referenceUrl: scenario.referenceUrl,
+            referenceLabel: scenario.referenceLabel,
           });
         } catch (err) {
           console.error("Groq failed, falling back to Claude:", err);
@@ -89,6 +92,8 @@ export async function POST(request: NextRequest) {
             diagramDescription,
             experience,
             timeTakenMinutes,
+            referenceUrl: scenario.referenceUrl,
+            referenceLabel: scenario.referenceLabel,
           });
         }
       } else {
@@ -98,6 +103,50 @@ export async function POST(request: NextRequest) {
           diagramDescription,
           experience,
           timeTakenMinutes,
+          referenceUrl: scenario.referenceUrl,
+          referenceLabel: scenario.referenceLabel,
+        });
+      }
+    } else if (type === "lld") {
+      if (!scenario || !code) {
+        return Response.json(
+          { error: "LLD report requires scenario and code" },
+          { status: 400 }
+        );
+      }
+
+      if (useGroq) {
+        try {
+          report = await generateLLDReportGroq({
+            title: scenario.title,
+            requirements: scenario.requirements,
+            code,
+            experience,
+            timeTakenMinutes,
+            referenceUrl: scenario.referenceUrl,
+            referenceLabel: scenario.referenceLabel,
+          });
+        } catch (err) {
+          console.error("Groq failed, falling back to Claude:", err);
+          report = await generateLLDReport({
+            title: scenario.title,
+            requirements: scenario.requirements,
+            code,
+            experience,
+            timeTakenMinutes,
+            referenceUrl: scenario.referenceUrl,
+            referenceLabel: scenario.referenceLabel,
+          });
+        }
+      } else {
+        report = await generateLLDReport({
+          title: scenario.title,
+          requirements: scenario.requirements,
+          code,
+          experience,
+          timeTakenMinutes,
+          referenceUrl: scenario.referenceUrl,
+          referenceLabel: scenario.referenceLabel,
         });
       }
     } else {
@@ -107,9 +156,22 @@ export async function POST(request: NextRequest) {
     // Add sessionId to report
     report.sessionId = sessionId;
 
+    reportCache.set(sessionId, report);
     return Response.json(report);
   } catch (error) {
-    console.error("Error generating report:", error);
-    return Response.json({ error: "Failed to generate report" }, { status: 500 });
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const errStack = error instanceof Error ? error.stack : undefined;
+    console.error("[/api/report] Error generating report:", {
+      message: errMsg,
+      stack: errStack,
+      timestamp: new Date().toISOString(),
+    });
+    return Response.json(
+      {
+        error: "Failed to generate report",
+        detail: process.env.NODE_ENV === "production" ? undefined : errMsg,
+      },
+      { status: 500 }
+    );
   }
 }

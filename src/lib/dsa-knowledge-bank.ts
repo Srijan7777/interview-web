@@ -20,7 +20,28 @@ export interface KnowledgeBank {
   problems: KnowledgeBankEntry[];
 }
 
+export interface KnowledgeBankFilters {
+  topics?: string[];
+  companies?: string[];
+  difficulties?: Problem["difficulty"][];
+  limit?: number;
+  excludeIds?: string[];
+  experienceLevels?: string[];
+  randomize?: boolean;
+  randomSeed?: number;
+}
+
+export interface KnowledgeBankPracticeProblem extends Problem {
+  interviewSignal: string;
+  canonicalCases: CanonicalCase[];
+}
+
 const BIG_TECH = ["google", "amazon", "meta", "microsoft"];
+const DIFFICULTY_ORDER: Record<Problem["difficulty"], number> = {
+  easy: 0,
+  medium: 1,
+  hard: 2,
+};
 
 export const DSA_KNOWLEDGE_BANK: KnowledgeBank = {
   version: 1,
@@ -521,8 +542,338 @@ export const DSA_KNOWLEDGE_BANK: KnowledgeBank = {
         { label: "All same", input: 's = "AAAA", k = 2', output: "4" },
       ],
     },
+    {
+      problem: {
+        id: "kb-022-reverse-linked-list",
+        title: "Reverse Linked List",
+        topic: "linked-list",
+        difficulty: "easy",
+        leetcodeNumber: 206,
+        companies: BIG_TECH,
+        tags: ["linked-list", "pointer-manipulation"],
+        url: "https://leetcode.com/problems/reverse-linked-list/",
+        approach: "Iteratively reverse `next` pointers while tracking previous, current, and next nodes.",
+        timeComplexity: "O(n)",
+        spaceComplexity: "O(1)",
+      },
+      interviewSignal: "Foundational pointer-manipulation problem that screens linked-list fluency quickly.",
+      canonicalCases: [
+        { label: "Standard", input: "head = [1,2,3,4,5]", output: "[5,4,3,2,1]" },
+        { label: "Single node", input: "head = [1]", output: "[1]" },
+        { label: "Empty list", input: "head = []", output: "[]" },
+      ],
+    },
+    {
+      problem: {
+        id: "kb-023-linked-list-cycle",
+        title: "Linked List Cycle",
+        topic: "linked-list",
+        difficulty: "easy",
+        leetcodeNumber: 141,
+        companies: BIG_TECH,
+        tags: ["linked-list", "fast-slow-pointers"],
+        url: "https://leetcode.com/problems/linked-list-cycle/",
+        approach: "Use Floyd's slow/fast pointers to detect whether two pointers ever meet.",
+        timeComplexity: "O(n)",
+        spaceComplexity: "O(1)",
+      },
+      interviewSignal: "A classic pointer invariant check that appears often as a warm-up or safety question.",
+      canonicalCases: [
+        { label: "Has cycle", input: "head = [3,2,0,-4], pos = 1", output: "true" },
+        { label: "No cycle", input: "head = [1,2], pos = -1", output: "false" },
+        { label: "Self cycle", input: "head = [1], pos = 0", output: "true" },
+      ],
+    },
+    {
+      problem: {
+        id: "kb-024-merge-two-lists",
+        title: "Merge Two Sorted Lists",
+        topic: "linked-list",
+        difficulty: "easy",
+        leetcodeNumber: 21,
+        companies: BIG_TECH,
+        tags: ["linked-list", "merge"],
+        url: "https://leetcode.com/problems/merge-two-sorted-lists/",
+        approach: "Walk both lists with a dummy head and stitch nodes in sorted order.",
+        timeComplexity: "O(n + m)",
+        spaceComplexity: "O(1)",
+      },
+      interviewSignal: "Simple linked-list merge that tests careful pointer advancement and base-case handling.",
+      canonicalCases: [
+        { label: "Interleaved", input: "list1 = [1,2,4], list2 = [1,3,4]", output: "[1,1,2,3,4,4]" },
+        { label: "One empty", input: "list1 = [], list2 = []", output: "[]" },
+        { label: "Left empty", input: "list1 = [], list2 = [0]", output: "[0]" },
+      ],
+    },
+    {
+      problem: {
+        id: "kb-025-add-two-numbers",
+        title: "Add Two Numbers",
+        topic: "linked-list",
+        difficulty: "medium",
+        leetcodeNumber: 2,
+        companies: BIG_TECH,
+        tags: ["linked-list", "carry"],
+        url: "https://leetcode.com/problems/add-two-numbers/",
+        approach: "Add digit-by-digit with carry, creating a new list node for each computed digit.",
+        timeComplexity: "O(max(n, m))",
+        spaceComplexity: "O(max(n, m))",
+      },
+      interviewSignal: "Classic linked-list arithmetic problem that checks carry propagation and list construction discipline.",
+      canonicalCases: [
+        { label: "Different lengths", input: "l1 = [2,4,3], l2 = [5,6,4]", output: "[7,0,8]" },
+        { label: "Carry chain", input: "l1 = [9,9,9,9,9,9,9], l2 = [9,9,9,9]", output: "[8,9,9,9,0,0,0,1]" },
+        { label: "Zero plus zero", input: "l1 = [0], l2 = [0]", output: "[0]" },
+      ],
+    },
+    {
+      problem: {
+        id: "kb-026-invert-binary-tree",
+        title: "Invert Binary Tree",
+        topic: "trees",
+        difficulty: "easy",
+        leetcodeNumber: 226,
+        companies: BIG_TECH,
+        tags: ["tree", "dfs", "bfs"],
+        url: "https://leetcode.com/problems/invert-binary-tree/",
+        approach: "Swap left and right children recursively or iteratively with a queue.",
+        timeComplexity: "O(n)",
+        spaceComplexity: "O(h)",
+      },
+      interviewSignal: "Minimal tree traversal question that establishes recursion, queue handling, and structural mutation basics.",
+      canonicalCases: [
+        { label: "Balanced tree", input: "root = [4,2,7,1,3,6,9]", output: "[4,7,2,9,6,3,1]" },
+        { label: "Single node", input: "root = [1]", output: "[1]" },
+        { label: "Empty tree", input: "root = []", output: "[]" },
+      ],
+    },
+    {
+      problem: {
+        id: "kb-027-validate-bst",
+        title: "Validate Binary Search Tree",
+        topic: "trees",
+        difficulty: "medium",
+        leetcodeNumber: 98,
+        companies: BIG_TECH,
+        tags: ["tree", "bst", "inorder"],
+        url: "https://leetcode.com/problems/validate-binary-search-tree/",
+        approach: "Propagate allowable value bounds or confirm strict increasing order via inorder traversal.",
+        timeComplexity: "O(n)",
+        spaceComplexity: "O(h)",
+      },
+      interviewSignal: "Common tree invariant question that surfaces off-by-one and duplicate-handling mistakes.",
+      canonicalCases: [
+        { label: "Valid BST", input: "root = [2,1,3]", output: "true" },
+        { label: "Invalid right child", input: "root = [5,1,4,null,null,3,6]", output: "false" },
+        { label: "Duplicate value", input: "root = [2,2,2]", output: "false" },
+      ],
+    },
+    {
+      problem: {
+        id: "kb-028-binary-tree-level-order",
+        title: "Binary Tree Level Order Traversal",
+        topic: "trees",
+        difficulty: "medium",
+        leetcodeNumber: 102,
+        companies: BIG_TECH,
+        tags: ["tree", "bfs"],
+        url: "https://leetcode.com/problems/binary-tree-level-order-traversal/",
+        approach: "Traverse the tree level by level using a queue and collect each layer separately.",
+        timeComplexity: "O(n)",
+        spaceComplexity: "O(n)",
+      },
+      interviewSignal: "A basic BFS tree question that often precedes zigzag, right-side view, or vertical order variants.",
+      canonicalCases: [
+        { label: "Reference", input: "root = [3,9,20,null,null,15,7]", output: "[[3],[9,20],[15,7]]" },
+        { label: "Single node", input: "root = [1]", output: "[[1]]" },
+        { label: "Empty tree", input: "root = []", output: "[]" },
+      ],
+    },
+    {
+      problem: {
+        id: "kb-029-lowest-common-ancestor",
+        title: "Lowest Common Ancestor of a Binary Tree",
+        topic: "trees",
+        difficulty: "medium",
+        leetcodeNumber: 236,
+        companies: BIG_TECH,
+        tags: ["tree", "dfs", "ancestor"],
+        url: "https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-tree/",
+        approach: "Recurse into both subtrees; if both sides return a node, the current root is the LCA.",
+        timeComplexity: "O(n)",
+        spaceComplexity: "O(h)",
+      },
+      interviewSignal: "A strong interview staple for recursive decomposition and reasoning about ancestors in a tree.",
+      canonicalCases: [
+        { label: "Split below root", input: "root = [3,5,1,6,2,0,8,null,null,7,4], p = 5, q = 1", output: "3" },
+        { label: "Same subtree", input: "root = [3,5,1,6,2,0,8,null,null,7,4], p = 5, q = 4", output: "5" },
+        { label: "Direct ancestor", input: "root = [2,1], p = 2, q = 1", output: "2" },
+      ],
+    },
+    {
+      problem: {
+        id: "kb-030-subsets",
+        title: "Subsets",
+        topic: "backtracking",
+        difficulty: "medium",
+        leetcodeNumber: 78,
+        companies: BIG_TECH,
+        tags: ["backtracking", "power-set"],
+        url: "https://leetcode.com/problems/subsets/",
+        approach: "At each step, choose to include or exclude the current number while collecting every path.",
+        timeComplexity: "O(n * 2^n)",
+        spaceComplexity: "O(n)",
+      },
+      interviewSignal: "Core backtracking/power-set question that tests recursive branching and state restoration.",
+      canonicalCases: [
+        { label: "Three elements", input: "nums = [1,2,3]", output: "[[],[1],[2],[1,2],[3],[1,3],[2,3],[1,2,3]]" },
+        { label: "Single element", input: "nums = [0]", output: "[[],[0]]" },
+        { label: "Empty set", input: "nums = []", output: "[[]]" },
+      ],
+    },
+    {
+      problem: {
+        id: "kb-031-permutations",
+        title: "Permutations",
+        topic: "backtracking",
+        difficulty: "medium",
+        leetcodeNumber: 46,
+        companies: BIG_TECH,
+        tags: ["backtracking", "permutation"],
+        url: "https://leetcode.com/problems/permutations/",
+        approach: "Build permutations by choosing unused elements and backtracking after each branch.",
+        timeComplexity: "O(n * n!)",
+        spaceComplexity: "O(n)",
+      },
+      interviewSignal: "Another canonical recursion question that checks branching factor awareness and visited-state tracking.",
+      canonicalCases: [
+        { label: "Three values", input: "nums = [1,2,3]", output: "[[1,2,3],[1,3,2],[2,1,3],[2,3,1],[3,1,2],[3,2,1]]" },
+        { label: "Two values", input: "nums = [0,1]", output: "[[0,1],[1,0]]" },
+        { label: "Single value", input: "nums = [1]", output: "[[1]]" },
+      ],
+    },
+    {
+      problem: {
+        id: "kb-032-combination-sum",
+        title: "Combination Sum",
+        topic: "backtracking",
+        difficulty: "medium",
+        leetcodeNumber: 39,
+        companies: BIG_TECH,
+        tags: ["backtracking", "search-tree"],
+        url: "https://leetcode.com/problems/combination-sum/",
+        approach: "Explore candidates from a non-decreasing index so the same value can be reused without generating duplicates.",
+        timeComplexity: "Exponential in the worst case",
+        spaceComplexity: "O(target / minCandidate)",
+      },
+      interviewSignal: "A standard combination-search question that probes pruning, deduping, and branch ordering.",
+      canonicalCases: [
+        { label: "Classic", input: "candidates = [2,3,6,7], target = 7", output: "[[2,2,3],[7]]" },
+        { label: "Two combos", input: "candidates = [2,3,5], target = 8", output: "[[2,2,2,2],[2,3,3],[3,5]]" },
+        { label: "No solution", input: "candidates = [5,10], target = 3", output: "[]" },
+      ],
+    },
+    {
+      problem: {
+        id: "kb-033-word-search",
+        title: "Word Search",
+        topic: "backtracking",
+        difficulty: "medium",
+        leetcodeNumber: 79,
+        companies: BIG_TECH,
+        tags: ["backtracking", "grid", "dfs"],
+        url: "https://leetcode.com/problems/word-search/",
+        approach: "Depth-first search from each cell with visited marking and immediate pruning when characters mismatch.",
+        timeComplexity: "O(m * n * 4^L)",
+        spaceComplexity: "O(L)",
+      },
+      interviewSignal: "Very common grid-backtracking question that merges DFS, pruning, and visited-state handling.",
+      canonicalCases: [
+        {
+          label: "Exists",
+          input: "board = [[\"A\",\"B\",\"C\",\"E\"],[\"S\",\"F\",\"C\",\"S\"],[\"A\",\"D\",\"E\",\"E\"]], word = \"ABCCED\"",
+          output: "true",
+        },
+        {
+          label: "Not exists",
+          input: "board = [[\"A\",\"B\",\"C\",\"E\"],[\"S\",\"F\",\"C\",\"S\"],[\"A\",\"D\",\"E\",\"E\"]], word = \"ABCB\"",
+          output: "false",
+        },
+        {
+          label: "Single cell",
+          input: "board = [[\"A\"]], word = \"A\"",
+          output: "true",
+        },
+      ],
+    },
+    {
+      problem: {
+        id: "kb-034-design-add-search-words",
+        title: "Design Add and Search Words Data Structure",
+        topic: "trie",
+        difficulty: "medium",
+        leetcodeNumber: 211,
+        companies: BIG_TECH,
+        tags: ["trie", "wildcard-search", "design"],
+        url: "https://leetcode.com/problems/design-add-and-search-words-data-structure/",
+        approach: "Use a trie and branch recursively when the query contains wildcard characters.",
+        timeComplexity: "O(length of word) average, exponential only in wildcard-heavy paths",
+        spaceComplexity: "O(total characters)",
+      },
+      interviewSignal: "A strong trie-style design question that is a step up from plain prefix matching.",
+      canonicalCases: [
+        {
+          label: "Wildcard match",
+          input: "ops = [addWord(\"bad\"), addWord(\"dad\"), addWord(\"mad\"), search(\"pad\"), search(\"bad\"), search(\".ad\"), search(\"b..\")]",
+          output: "[null,null,null,false,true,true,true]",
+        },
+        {
+          label: "Exact and wildcard",
+          input: "ops = [addWord(\"a\"), addWord(\"ab\"), search(\"a\"), search(\"a.\"), search(\".\")]",
+          output: "[null,null,true,true,true]",
+        },
+        {
+          label: "Empty trie",
+          input: "ops = [search(\".\")]",
+          output: "[false]",
+        },
+      ],
+    },
+    {
+      problem: {
+        id: "kb-035-min-stack",
+        title: "Min Stack",
+        topic: "stack",
+        difficulty: "medium",
+        leetcodeNumber: 155,
+        companies: BIG_TECH,
+        tags: ["stack", "design"],
+        url: "https://leetcode.com/problems/min-stack/",
+        approach: "Store the running minimum alongside each stack entry or keep a secondary min stack.",
+        timeComplexity: "O(1) per operation",
+        spaceComplexity: "O(n)",
+      },
+      interviewSignal: "A small but important design question that checks whether constant-time invariants are maintained correctly.",
+      canonicalCases: [
+        {
+          label: "Basic flow",
+          input: "ops = [push(-2), push(0), push(-3), getMin(), pop(), top(), getMin()]",
+          output: "[null,null,null,-3,null,0,-2]",
+        },
+        {
+          label: "Duplicates",
+          input: "ops = [push(2), push(2), getMin(), pop(), getMin()]",
+          output: "[null,null,2,null,2]",
+        },
+        {
+          label: "Single push",
+          input: "ops = [push(5), top(), getMin()]",
+          output: "[null,5,5]",
+        },
+      ],
+    },
   ],
-} as const;
+};
 
 export function getKnowledgeBankProblemById(leetcodeNumber: number): KnowledgeBankEntry | undefined {
   return DSA_KNOWLEDGE_BANK.problems.find((entry) => entry.problem.leetcodeNumber === leetcodeNumber);
@@ -531,4 +882,159 @@ export function getKnowledgeBankProblemById(leetcodeNumber: number): KnowledgeBa
 export function getKnowledgeBankProblemByTitle(title: string): KnowledgeBankEntry | undefined {
   const normalizedTitle = title.trim().toLowerCase();
   return DSA_KNOWLEDGE_BANK.problems.find((entry) => entry.problem.title.toLowerCase() === normalizedTitle);
+}
+
+// Seedable shuffle — Fisher-Yates with xorshift
+function shuffle<T>(arr: T[], seed?: number): T[] {
+  const a = [...arr];
+  let s = seed ?? Date.now();
+  const rand = () => {
+    s ^= s << 13; s ^= s >>> 17; s ^= s << 5;
+    return ((s < 0 ? ~s + 1 : s) % 10000) / 10000;
+  };
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Labels which experience levels each problem is appropriate for
+const EXP_LEVEL_MAP: Record<string, string[]> = {
+  // Easy + fundamental → all levels
+  "arrays-and-hashing": ["0-1", "1-3", "3-5", "5+"],
+  "stack": ["0-1", "1-3", "3-5"],
+  "two-pointers": ["0-1", "1-3", "3-5"],
+  "sliding-window": ["1-3", "3-5", "5+"],
+  "binary-search": ["1-3", "3-5", "5+"],
+  "intervals": ["1-3", "3-5", "5+"],
+  "linked-list": ["0-1", "1-3", "3-5"],
+  "trees": ["1-3", "3-5", "5+"],
+  "graphs": ["3-5", "5+"],
+  "dynamic-programming": ["3-5", "5+"],
+  "backtracking": ["1-3", "3-5", "5+"],
+  "heap": ["1-3", "3-5", "5+"],
+  "trie": ["3-5", "5+"],
+  "design": ["3-5", "5+"],
+  "system-design": ["3-5", "5+"],
+};
+
+export function getExperienceLevelsForProblem(topic: string, difficulty: string): string[] {
+  const all = ["0-1", "1-3", "3-5", "5+"];
+  return all.filter((e) => isAppropriateForExp(topic, difficulty, e));
+}
+
+function isAppropriateForExp(topic: string, difficulty: string, exp: string): boolean {
+  const allowed = EXP_LEVEL_MAP[topic] || ["0-1", "1-3", "3-5", "5+"];
+  if (!allowed.includes(exp)) return false;
+  // Additional difficulty gate
+  if (exp === "0-1" && difficulty === "hard") return false;
+  if (exp === "5+" && difficulty === "easy") return false;
+  return true;
+}
+
+export function selectKnowledgeBankProblems(
+  filters: KnowledgeBankFilters = {}
+): KnowledgeBankEntry[] {
+  const limit = Math.max(1, filters.limit ?? 5);
+  const topicFilter = normalizeList(filters.topics);
+  const companyFilter = normalizeList(filters.companies);
+  const difficultyFilter = new Set(filters.difficulties ?? []);
+  const excludeSet = new Set(filters.excludeIds ?? []);
+  const expLevels = filters.experienceLevels ?? [];
+  const randomize = filters.randomize ?? true;
+
+  let filtered = DSA_KNOWLEDGE_BANK.problems
+    .filter((entry) => {
+      if (excludeSet.has(entry.problem.id)) return false;
+      const topicMatches = topicFilter.length === 0 || topicFilter.includes(entry.problem.topic);
+      const companyMatches =
+        companyFilter.length === 0 ||
+        entry.problem.companies.some((company) => companyFilter.includes(company.toLowerCase()));
+      const difficultyMatches =
+        difficultyFilter.size === 0 || difficultyFilter.has(entry.problem.difficulty);
+      const expMatches =
+        expLevels.length === 0 ||
+        expLevels.some((e) => isAppropriateForExp(entry.problem.topic, entry.problem.difficulty, e));
+
+      return topicMatches && companyMatches && difficultyMatches && expMatches;
+    });
+
+  if (randomize) {
+    filtered = shuffle(filtered, filters.randomSeed);
+    // Post-shuffle: still group by difficulty if difficulties filter set
+    if (difficultyFilter.size > 0) {
+      filtered.sort((a, b) =>
+        DIFFICULTY_ORDER[a.problem.difficulty] - DIFFICULTY_ORDER[b.problem.difficulty]
+      );
+    }
+  } else {
+    filtered.sort((left, right) => {
+      const difficultyDelta =
+        DIFFICULTY_ORDER[left.problem.difficulty] - DIFFICULTY_ORDER[right.problem.difficulty];
+      if (difficultyDelta !== 0) return difficultyDelta;
+      const topicDelta = left.problem.topic.localeCompare(right.problem.topic);
+      if (topicDelta !== 0) return topicDelta;
+      return left.problem.leetcodeNumber - right.problem.leetcodeNumber;
+    });
+  }
+
+  if (filtered.length <= limit) {
+    return filtered;
+  }
+
+  const grouped = new Map<string, KnowledgeBankEntry[]>();
+  for (const entry of filtered) {
+    const bucket = grouped.get(entry.problem.topic) ?? [];
+    bucket.push(entry);
+    grouped.set(entry.problem.topic, bucket);
+  }
+
+  const topicOrder = [
+    ...DSA_KNOWLEDGE_BANK.rotation.filter((topic) => grouped.has(topic)),
+    ...Array.from(grouped.keys()).filter((topic) => !DSA_KNOWLEDGE_BANK.rotation.includes(topic)),
+  ];
+
+  const selected: KnowledgeBankEntry[] = [];
+  let round = 0;
+
+  while (selected.length < limit) {
+    let addedThisRound = false;
+
+    for (const topic of topicOrder) {
+      const bucket = grouped.get(topic);
+      if (!bucket || round >= bucket.length) {
+        continue;
+      }
+
+      selected.push(bucket[round]);
+      addedThisRound = true;
+
+      if (selected.length === limit) {
+        break;
+      }
+    }
+
+    if (!addedThisRound) {
+      break;
+    }
+
+    round += 1;
+  }
+
+  return selected;
+}
+
+export function getKnowledgeBankPracticeProblems(
+  filters: KnowledgeBankFilters = {}
+): KnowledgeBankPracticeProblem[] {
+  return selectKnowledgeBankProblems(filters).map((entry) => ({
+    ...entry.problem,
+    interviewSignal: entry.interviewSignal,
+    canonicalCases: entry.canonicalCases,
+  }));
+}
+
+function normalizeList(values?: string[]): string[] {
+  return (values ?? []).map((value) => value.trim().toLowerCase()).filter(Boolean);
 }
