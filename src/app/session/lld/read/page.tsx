@@ -37,6 +37,8 @@ function LLDReadPage() {
 
         const data = await response.json();
         setSessionData(data);
+        // Persist session to localStorage for solve page
+        localStorage.setItem(`lld-session-${data.sessionId}`, JSON.stringify(data));
       } catch (error) {
         console.error("Failed to start session:", error);
       } finally {

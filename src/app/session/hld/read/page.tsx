@@ -39,6 +39,8 @@ function HLDReadPage() {
 
         const data = await response.json();
         setSessionData(data);
+        // Persist session to localStorage for design page
+        localStorage.setItem(`hld-session-${data.sessionId}`, JSON.stringify(data));
       } catch (error) {
         console.error("Failed to start session:", error);
       } finally {

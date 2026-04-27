@@ -32,9 +32,18 @@ function LLDSolvePage() {
           throw new Error("No session ID provided");
         }
 
+        // Try localStorage first (from lld/read page)
+        const cached = localStorage.getItem(`lld-session-${sessionId}`);
+        if (cached) {
+          setSessionData(JSON.parse(cached));
+          setLoading(false);
+          return;
+        }
+
+        // Fallback to API if not in localStorage
         const response = await fetch(`/api/session/read?sessionId=${sessionId}`);
         if (!response.ok) throw new Error("Session not found");
-        
+
         const data = await response.json();
         setSessionData(data);
       } catch (error) {

@@ -51,7 +51,15 @@ function HLDDesignPage() {
           throw new Error("Missing sessionId");
         }
 
-        // Fetch cached session data from read API
+        // Try localStorage first (from hld/read page)
+        const cached = localStorage.getItem(`hld-session-${sessionId}`);
+        if (cached) {
+          setSessionData(JSON.parse(cached));
+          setLoading(false);
+          return;
+        }
+
+        // Fallback to API if not in localStorage
         const response = await fetch(`/api/session/read?sessionId=${sessionId}`);
         if (!response.ok) {
           throw new Error("Failed to fetch session data");
