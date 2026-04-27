@@ -84,7 +84,10 @@ export async function POST(request: NextRequest) {
       progress.weeklyGoal.completedThisWeek += 1;
     }
 
-    // Only increment if first ever attempt
+    // Skip file-based attempt tracking in production
+    // recordSolved() in client already handles dashboard tracking
+    // Uncomment below only if CLI_DATA_PATH is available
+    /*
     const attemptedJson = require("fs").readFileSync(
       process.env.CLI_DATA_PATH + "\\problems\\attempted.json",
       "utf8"
@@ -100,6 +103,7 @@ export async function POST(request: NextRequest) {
       progress.byDifficulty[difficulty] = (progress.byDifficulty[difficulty] || 0) + 1;
       progress.byTopic[topic] = (progress.byTopic[topic] || 0) + 1;
     }
+    */
 
     await updateProgress(progress);
 
